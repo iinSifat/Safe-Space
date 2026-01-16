@@ -1,0 +1,41 @@
+# PHP
+*.php~
+*.phtml
+.PHP_CS
+.PHP_CS.cache
+
+# Composer
+/vendor/
+composer.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+*.sql
+database/*.sql
+
+# Session & Uploads
+uploads/
+sessions/
+*.log
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Config (if it has sensitive data)
+# config/config.php
+
+# Testing
+test-results/
