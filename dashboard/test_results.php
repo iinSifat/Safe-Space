@@ -193,6 +193,84 @@ $page_title = 'Test Results';
             font-size: 18px;
         }
 
+        /* Updated by Shuvo - START */
+        /* Print-specific styles: hide header, sidebar and other UI elements so only the test result content is printed. */
+        @page {
+            margin: 0.4in;
+            size: auto;
+        }
+
+        @media print {
+            /* Hide non-result layout elements */
+            .sidebar,
+            .top-bar,
+            .nav-links,
+            .action-buttons {
+                display: none !important;
+            }
+
+            /* Hide everything via visibility, then reveal the result block */
+            body {
+                visibility: hidden;
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                height: auto;
+                overflow: visible;
+            }
+
+            .dashboard-wrapper,
+            .main-content,
+            .content-area,
+            .results-container,
+            .results-container * {
+                visibility: visible !important;
+                display: block !important;
+            }
+
+            /* Place results cleanly at the top */
+            .main-content,
+            .content-area {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+            }
+
+            .results-container {
+                position: relative;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0.4in !important;
+                page-break-before: avoid;
+                page-break-after: avoid;
+                page-break-inside: avoid;
+            }
+
+            /* Simplify the card appearance for printing */
+            .results-card {
+                box-shadow: none !important;
+                border: none !important;
+                background: transparent !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                page-break-inside: avoid;
+            }
+
+            /* Hide interactive controls (back/print buttons) */
+            .action-buttons,
+            .action-buttons * {
+                display: none !important;
+                visibility: hidden !important;
+            }
+
+            /* Ensure readable text colors on print */
+            .test-name, .result-message, .result-category, .disclaimer, .resources-section {
+                color: #000 !important;
+            }
+        }
+        /* Updated by Shuvo - END */
+
         @media (max-width: 768px) {
             .results-container {
                 padding: 12px;

@@ -110,7 +110,9 @@ while ($row = $posts_result->fetch_assoc()) {
             flex-wrap: wrap;
         }
 
+        <?php // Updated by Shuvo - START ?>
         .category-btn {
+            text-decoration: none;
             padding: 8px 16px;
             border: 2px solid var(--light-gray);
             background: white;
@@ -119,6 +121,7 @@ while ($row = $posts_result->fetch_assoc()) {
             transition: all var(--transition-fast);
             font-weight: 500;
         }
+        <?php // Updated by Shuvo - END ?>
 
         .category-btn:hover,
         .category-btn.active {
