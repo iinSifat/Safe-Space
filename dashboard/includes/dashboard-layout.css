@@ -3,14 +3,18 @@
 .dashboard-wrapper {
     display: flex;
     min-height: 100vh;
+    margin: 0;
+    padding: 0;
 }
 
 .sidebar {
     width: 260px;
     background: rgba(255, 255, 255, 0.95);
     border-right: 1px solid rgba(12, 27, 51, 0.08);
-    padding: 24px 0;
+    padding: 0;
     position: fixed;
+    top: 0;
+    left: 0;
     height: 100vh;
     overflow-y: auto;
 }
@@ -25,13 +29,15 @@
 .top-bar {
     background: rgba(255, 255, 255, 0.95);
     border-bottom: 1px solid rgba(12, 27, 51, 0.08);
-    padding: 16px 32px;
+    padding: 0 32px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: 99;
+    height: 64px;
+    margin: 0;
 }
 
 .top-bar-right {
@@ -41,8 +47,8 @@
 }
 
 .nav-brand {
-    padding: 0 24px 24px;
-    margin-bottom: 16px;
+    padding: 12px 24px;
+    margin: 0;
     border-bottom: 1px solid rgba(12, 27, 51, 0.08);
     font-size: 1.3rem;
     font-weight: 700;
@@ -50,13 +56,21 @@
     display: flex;
     align-items: center;
     gap: 12px;
+    transition: opacity 0.2s ease;
+    height: 64px;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.nav-brand:hover {
+    opacity: 0.8;
 }
 
 .nav-links {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 0 12px;
+    padding: 16px 12px 0 12px;
 }
 
 .nav-links a {

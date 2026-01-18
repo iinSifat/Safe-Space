@@ -21,9 +21,11 @@ composer.lock
 .env.local
 .env.*.local
 
-# Database
-*.sql
-database/*.sql
+# Database - ignore data dumps but keep schema
+database/backup*.sql
+database/dump*.sql
+database/*_backup.sql
+# Keep schema.sql in version control
 
 # Session & Uploads
 uploads/

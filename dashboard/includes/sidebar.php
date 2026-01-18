@@ -9,10 +9,10 @@ $current_page = basename($_SERVER['PHP_SELF']);
 ?>
 
 <aside class="sidebar">
-    <div class="nav-brand">
+    <a href="index.php" class="nav-brand">
         <img src="../images/logo.png" alt="Safe Space Logo" style="width: 40px; height: 40px; border-radius: 12px;">
         Safe Space
-    </div>
+    </a>
     <nav class="nav-links">
         <a href="index.php" class="<?php echo $current_page === 'index.php' ? 'active' : ''; ?>">📊 Dashboard</a>
         <a href="mood_tracker.php" class="<?php echo $current_page === 'mood_tracker.php' ? 'active' : ''; ?>">😊 Mood Tracker</a>
