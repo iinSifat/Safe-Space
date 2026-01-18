@@ -113,8 +113,10 @@ $tier_progress = min($tier_progress, 100);
             width: 260px;
             background: rgba(255, 255, 255, 0.95);
             border-right: 1px solid rgba(12, 27, 51, 0.08);
-            padding: 24px 0;
+            padding: 0;
             position: fixed;
+            top: 0;
+            left: 0;
             height: 100vh;
             overflow-y: auto;
         }
@@ -128,13 +130,14 @@ $tier_progress = min($tier_progress, 100);
         .top-bar {
             background: rgba(255, 255, 255, 0.95);
             border-bottom: 1px solid rgba(12, 27, 51, 0.08);
-            padding: 16px 32px;
+            padding: 0 32px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             position: sticky;
             top: 0;
             z-index: 100;
+            height: 64px;
         }
 
         .top-bar-right {
@@ -144,8 +147,8 @@ $tier_progress = min($tier_progress, 100);
         }
 
         .nav-brand {
-            padding: 0 24px 24px;
-            margin-bottom: 16px;
+            padding: 12px 24px;
+            height: 64px;
             border-bottom: 1px solid rgba(12, 27, 51, 0.08);
             font-size: 1.3rem;
             font-weight: 700;
@@ -153,6 +156,13 @@ $tier_progress = min($tier_progress, 100);
             display: flex;
             align-items: center;
             gap: 12px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+
+        .nav-brand:hover {
+            opacity: 0.8;
         }
 
         .brand-badge {
@@ -416,10 +426,10 @@ $tier_progress = min($tier_progress, 100);
         
         <!-- Left Sidebar -->
         <aside class="sidebar">
-            <div class="nav-brand">
+            <a href="index.php" class="nav-brand">
                 <img src="../images/logo.png" alt="Safe Space Logo" style="width: 40px; height: 40px; border-radius: 12px;">
                 Safe Space
-            </div>
+            </a>
             <nav class="nav-links">
                 <a href="index.php" class="active">📊 Dashboard</a>
                 <a href="mood_tracker.php">😊 Mood Tracker</a>
