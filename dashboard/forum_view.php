@@ -217,9 +217,9 @@ $replies_stmt->close();
                 <?php echo htmlspecialchars($post['title']); ?>
             </h1>
             <div class="post-header-meta">
-                <span>👤 <?php echo htmlspecialchars($post['username']); ?></span>
+                <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 4px; vertical-align: middle;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/></svg><?php echo htmlspecialchars($post['username']); ?></span>
                 <span>📅 <?php echo date('M j, Y \a\t g:i A', strtotime($post['created_at'])); ?></span>
-                <span>👁️ <?php echo $post['view_count']; ?> views</span>
+                <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 4px; vertical-align: middle;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><?php echo $post['view_count']; ?> views</span>
             </div>
         </div>
 
@@ -230,13 +230,13 @@ $replies_stmt->close();
 
         <!-- Replies Section -->
         <div class="replies-section">
-            <div class="replies-title">💬 Replies (<?php echo count($replies); ?>)</div>
+            <div class="replies-title"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Replies (<?php echo count($replies); ?>)</div>
 
             <?php if (count($replies) > 0): ?>
                 <?php foreach ($replies as $reply): ?>
                     <div class="reply-item">
                         <div class="reply-meta">
-                            <span class="reply-author">👤 <?php echo htmlspecialchars($reply['username']); ?></span>
+                            <span class="reply-author"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 4px; vertical-align: middle;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/></svg><?php echo htmlspecialchars($reply['username']); ?></span>
                             <span class="reply-date"><?php echo date('M j, Y \a\t g:i A', strtotime($reply['created_at'])); ?></span>
                         </span>
                         <div class="reply-content" style="margin-top: 0.5rem;">

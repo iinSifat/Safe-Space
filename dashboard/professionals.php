@@ -211,7 +211,7 @@ $professionals = [
         
             <main class="main-content">
                 <div class="top-bar">
-                    <h2 style="margin: 0; font-size: 18px; color: var(--text-primary);">👨‍⚕️ Find Professionals</h2>
+                    <h2 style="margin: 0; font-size: 18px; color: var(--text-primary);"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/></svg>Find Professionals</h2>
                     <div class="top-bar-right">
                         <a href="notifications.php" style="text-decoration: none; color: var(--text-primary); font-weight: 600; padding: 8px 16px; background: var(--light-bg); border-radius: 8px;">
                             🔔 Notifications
@@ -223,7 +223,7 @@ $professionals = [
     <div class="professionals-container">
         <!-- Header -->
         <div class="header">
-            <h1>👨‍⚕️ Mental Health Professionals</h1>
+            <h1><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 12px; vertical-align: middle;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/></svg>Mental Health Professionals</h1>
             <p>Connect with verified, licensed mental health professionals for personalized support</p>
         </div>
 
@@ -244,7 +244,7 @@ $professionals = [
             <?php foreach ($professionals as $prof): ?>
                 <div class="professional-card">
                     <div class="professional-header">
-                        <div class="professional-avatar">👨‍⚕️</div>
+                        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" class="professional-avatar"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/></svg>
                         <div class="professional-info">
                             <h3><?php echo htmlspecialchars($prof['name']); ?></h3>
                             <p class="professional-spec"><?php echo htmlspecialchars($prof['specialization']); ?></p>
@@ -264,7 +264,7 @@ $professionals = [
                     </div>
 
                     <div class="professional-footer">
-                        <div class="fee">$<?php echo $prof['fee']; ?>/session</div>
+                        <div class="fee">৳<?php echo $prof['fee']; ?>/session</div>
                         <button class="book-btn" onclick="alert('Booking system coming soon! 🎉')">Book</button>
                     </div>
                 </div>

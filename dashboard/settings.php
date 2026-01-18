@@ -205,7 +205,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
                 <div class="settings-container">
                     <!-- Header -->
                     <div class="settings-header">
-                        <h1>⚙️ Settings</h1>
+                        <h1><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 12px; vertical-align: middle;"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 0l4.24-4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m5.08 0l4.24 4.24M19 12a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>Settings</h1>
                         <p>Manage your account settings and preferences</p>
                     </div>
 
@@ -241,7 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
 
                     <!-- Account Settings -->
                     <div class="settings-card">
-                        <div class="card-title">👤 Account Information</div>
+                        <div class="card-title"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/></svg>Account Information</div>
                         
                         <div class="setting-group">
                             <div class="setting-label">Username</div>
@@ -291,7 +291,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
 
                     <!-- Danger Zone -->
                     <div class="settings-card" style="border: 2px solid var(--error);">
-                        <div class="card-title" style="color: var(--error);">⚠️ Danger Zone</div>
+                        <div class="card-title" style="color: var(--error);"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Danger Zone</div>
                         
                         <div class="setting-group">
                             <div class="setting-label" style="color: var(--error);">Delete Account</div>
