@@ -11,6 +11,7 @@ $user_id = get_user_id();
 $db = Database::getInstance();
 $conn = $db->getConnection();
 
+// Updated by Shuvo - START
 // Sample professionals (in a real app, these would be from database)
 $professionals = [
     [
@@ -18,7 +19,7 @@ $professionals = [
         'name' => 'Dr. Sarah Johnson',
         'specialization' => 'Depression & Anxiety',
         'rating' => 4.8,
-        'fee' => 80,
+        'fee' => 500,
         'verified' => true
     ],
     [
@@ -26,7 +27,7 @@ $professionals = [
         'name' => 'Dr. Michael Chen',
         'specialization' => 'Trauma & PTSD',
         'rating' => 4.9,
-        'fee' => 100,
+        'fee' => 1000,
         'verified' => true
     ],
     [
@@ -34,7 +35,7 @@ $professionals = [
         'name' => 'Dr. Emma Rodriguez',
         'specialization' => 'Relationship Issues',
         'rating' => 4.7,
-        'fee' => 75,
+        'fee' => 800,
         'verified' => true
     ],
     [
@@ -42,10 +43,11 @@ $professionals = [
         'name' => 'Dr. James Williams',
         'specialization' => 'Work Stress & Burnout',
         'rating' => 4.6,
-        'fee' => 90,
+        'fee' => 400,
         'verified' => true
     ]
 ];
+// Updated by Shuvo - END
 
 ?>
 <!DOCTYPE html>
