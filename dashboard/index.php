@@ -432,15 +432,60 @@ $tier_progress = min($tier_progress, 100);
                 Safe Space
             </a>
             <nav class="nav-links">
-                <a href="index.php" class="active">📊 Dashboard</a>
-                <a href="mood_tracker.php">😊 Mood Tracker</a>
-                <a href="mental_health_tests.php">🧠 Mental Health Tests</a>
-                <a href="forum.php">💬 Forum</a>
-                <a href="professionals.php">👨‍⚕️ Professionals</a>
-                <a href="volunteer_apply.php">🤝 Apply to Volunteer</a>
-                <a href="settings.php">⚙️ Settings</a>
-                <a href="profile.php">👤 Profile</a>
-                <a href="../dashboard/logout.php" onclick="return confirm('Are you sure you want to logout?');">🚪 Logout</a>
+                <a href="index.php" class="active">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+                    </svg>
+                    Dashboard
+                </a>
+                <a href="mood_tracker.php">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/>
+                    </svg>
+                    Mood Tracker
+                </a>
+                <a href="mental_health_tests.php">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 11l3 3L22 4M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Mental Health Tests
+                </a>
+                <a href="forum.php">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                    </svg>
+                    Forum
+                </a>
+                <a href="professionals.php">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/>
+                    </svg>
+                    Professionals
+                </a>
+                <a href="volunteer_apply.php">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M16 11a2 2 0 100-4 2 2 0 000 4zM9 7a4 4 0 100 8 4 4 0 000-8z"/>
+                    </svg>
+                    Apply to Volunteer
+                </a>
+                <a href="settings.php">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 0l4.24-4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m5.08 0l4.24 4.24M19 12a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    Settings
+                </a>
+                <a href="profile.php">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/>
+                    </svg>
+                    Profile
+                </a>
+                <a href="../dashboard/logout.php" onclick="return confirm('Are you sure you want to logout?');">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5m7-7l-7 7 7 7"/>
+                    </svg>
+                    Logout
+                </a>
             </nav>
         </aside>
 
@@ -451,7 +496,8 @@ $tier_progress = min($tier_progress, 100);
                 <h2 style="margin: 0; font-size: 18px; color: var(--text-primary);">Dashboard</h2>
                 <div class="top-bar-right">
                     <a href="notifications.php" style="text-decoration: none; color: var(--text-primary); font-weight: 600; padding: 8px 16px; background: var(--light-bg); border-radius: 8px; display: flex; align-items: center; gap: 8px;">
-                        🔔 Notifications
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                        Notifications
                         <?php if ($unread_count > 0): ?>
                             <span style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px;"><?php echo intval($unread_count); ?></span>
                         <?php endif; ?>
@@ -463,7 +509,7 @@ $tier_progress = min($tier_progress, 100);
             <div class="content-area">
         <div class="header-card">
             <div class="header-left">
-                <h1>Welcome back, <?php echo htmlspecialchars($user['username']); ?>! 👋</h1>
+                <h1>Welcome back, <?php echo htmlspecialchars($user['username']); ?>! <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; vertical-align: middle; margin-left: 8px;"><path d="M5.5 8c.7-.3 1.2-.8 1.5-1.7.3.9.8 1.4 1.5 1.7-.7.3-1.2.8-1.5 1.7-.3-.9-.8-1.4-1.5-1.7z M15 13c1.4-.7 2.4-1.6 3-2.9.6 1.3 1.6 2.2 3 2.9-1.4.7-2.4 1.6-3 2.9-.6-1.3-1.6-2.2-3-2.9z M22 10c1-.5 1.8-1.2 2.2-2.2.4 1 1.2 1.7 2.2 2.2-1 .5-1.8 1.2-2.2 2.2-.4-1-1.2-1.7-2.2-2.2z"/></svg></h1>
                 <p style="opacity: 0.9;">Keep moving forward on your wellness journey</p>
             </div>
             <div class="header-right">
@@ -474,7 +520,7 @@ $tier_progress = min($tier_progress, 100);
                     </div>
                 <?php else: ?>
                     <div class="mood-badge">
-                        <span class="mood-emoji-large">📊</span>
+                        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" class="mood-emoji-large"><line x1="12" y1="2" x2="12" y2="22"/><polyline points="4 7 12 2 20 7"/><polyline points="4 17 12 22 20 17"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
                         <span>Log your mood</span>
                     </div>
                 <?php endif; ?>
@@ -485,7 +531,7 @@ $tier_progress = min($tier_progress, 100);
         <div class="dashboard-grid">
             <!-- Points Card -->
             <div class="card">
-                <div class="card-title">⭐ Points & Tier</div>
+                <div class="card-title"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><polygon points="12 2 15.09 10.26 24 10.26 17.55 16.5 19.64 24.76 12 19.52 4.36 24.76 6.45 16.5 0 10.26 8.91 10.26"/></svg>Points & Tier</div>
                 <div class="stat-display"><?php echo $user_points['total_points'] ?? 0; ?></div>
                 <div class="stat-label">Total Points Earned</div>
                 <div style="margin-top: 1rem;">
@@ -503,7 +549,7 @@ $tier_progress = min($tier_progress, 100);
 
             <!-- Streak Card -->
             <div class="card">
-                <div class="card-title">🔥 Streak</div>
+                <div class="card-title"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M13.49 5.48c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-3.6 13.9l1-4.4 2.1 2v6h2v-7.5l-2.1-2 .6-3c1.3 1.5 3.3 2.5 5.5 2.5v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1l5.2 7.3v3.9h2V9.1h-2l-1.6 5.4L2.7 9h3V7H3c-.5 0-1 .4-1 1v4h3.6L9.6 7.7 9.9 15.1z"/></svg>Streak</div>
                 <div class="stat-display"><?php echo $user_points['streak_days'] ?? 0; ?></div>
                 <div class="stat-label">Day Streak</div>
                 <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-secondary);">
@@ -513,14 +559,14 @@ $tier_progress = min($tier_progress, 100);
 
             <!-- Badges Card -->
             <div class="card">
-                <div class="card-title">🏆 Badges</div>
+                <div class="card-title"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M6 9c0-1 .895-2 2-2h8c1.105 0 2 .895 2 2v8c0 1.105-.895 2-2 2H8c-1.105 0-2-.895-2-2V9z"/><path d="M9 5c0-.552.448-1 1-1h4c.552 0 1 .448 1 1"/></svg>Badges</div>
                 <div class="stat-display"><?php echo count($badges); ?></div>
                 <div class="stat-label">Earned</div>
                 <?php if (count($badges) > 0): ?>
                     <div class="badges-grid" style="margin-top: 1rem;">
                         <?php foreach (array_slice($badges, 0, 3) as $badge): ?>
                             <div class="badge-item" title="<?php echo htmlspecialchars($badge['badge_description']); ?>">
-                                <div class="badge-icon">🎖️</div>
+                                <div class="badge-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M6 9c0-1 .895-2 2-2h8c1.105 0 2 .895 2 2v8c0 1.105-.895 2-2 2H8c-1.105 0-2-.895-2-2V9z"/><path d="M9 5c0-.552.448-1 1-1h4c.552 0 1 .448 1 1"/></svg></div>
                                 <div class="badge-name"><?php echo htmlspecialchars(substr($badge['badge_name'], 0, 10)); ?></div>
                             </div>
                         <?php endforeach; ?>

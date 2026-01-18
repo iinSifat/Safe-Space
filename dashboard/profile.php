@@ -208,7 +208,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
         
         <main class="main-content">
             <div class="top-bar">
-                <h2 style="margin: 0; font-size: 18px; color: var(--text-primary);">👤 My Profile</h2>
+                <h2 style="margin: 0; font-size: 18px; color: var(--text-primary);"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/></svg>My Profile</h2>
                 <div class="top-bar-right">
                     <a href="notifications.php" style="text-decoration: none; color: var(--text-primary); font-weight: 600; padding: 8px 16px; background: var(--light-bg); border-radius: 8px;">
                         🔔 Notifications
@@ -225,7 +225,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
 
         <!-- Profile Header -->
         <div class="profile-header">
-            <div class="profile-avatar">👤</div>
+            <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" stroke-width="2" class="profile-avatar"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/></svg>
             <div class="profile-info">
                 <h1><?php echo htmlspecialchars($user['username']); ?></h1>
                 <p style="opacity: 0.9; margin-bottom: 0.5rem;">
@@ -239,7 +239,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
 
         <!-- Stats Section -->
         <div class="profile-card">
-            <div class="card-title">📊 Your Statistics</div>
+            <div class="card-title"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><line x1="12" y1="2" x2="12" y2="22"/><polyline points="4 7 12 2 20 7"/><polyline points="4 17 12 22 20 17"/><line x1="2" y1="12" x2="22" y2="12"/></svg>Your Statistics</div>
             <div class="stat-row">
                 <div class="stat-item">
                     <div class="stat-value"><?php echo $points_data['total_points'] ?? 0; ?></div>
@@ -262,7 +262,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
 
         <!-- Edit Profile -->
         <div class="profile-card">
-            <div class="card-title">✏️ Edit Profile</div>
+            <div class="card-title"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Edit Profile</div>
             <form method="POST" action="">
                 <div class="form-group">
                     <label>Username</label>
@@ -295,7 +295,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
         <!-- Badges Section -->
         <?php if (count($badges) > 0): ?>
         <div class="profile-card">
-            <div class="card-title">🏆 Your Badges</div>
+            <div class="card-title"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M6 9c0-1 .895-2 2-2h8c1.105 0 2 .895 2 2v8c0 1.105-.895 2-2 2H8c-1.105 0-2-.895-2-2V9z"/><path d="M9 5c0-.552.448-1 1-1h4c.552 0 1 .448 1 1"/><path d="M12 14v-3M10 11h4"/></svg>Your Badges</div>
             <div class="badges-grid">
                 <?php foreach ($badges as $badge): ?>
                     <div class="badge-item" title="<?php echo htmlspecialchars($badge['badge_description']); ?>">

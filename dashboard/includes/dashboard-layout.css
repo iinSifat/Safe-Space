@@ -95,6 +95,16 @@
     background: var(--light-bg);
 }
 
+.nav-links svg {
+    min-width: 20px;
+    min-height: 20px;
+    flex-shrink: 0;
+}
+
+.nav-links a.active svg {
+    color: white;
+}
+
 .content-area {
     padding: 2rem;
 }

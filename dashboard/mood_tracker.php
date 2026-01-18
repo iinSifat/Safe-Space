@@ -255,7 +255,7 @@ $points_stmt->close();
         
         <main class="main-content">
             <div class="top-bar">
-                <h2 style="margin: 0; font-size: 18px; color: var(--text-primary);">😊 Mood Tracker</h2>
+                <h2 style="margin: 0; font-size: 18px; color: var(--text-primary);"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><circle cx="12" cy="12" r="10"/><path d="M8 14a4 4 0 0 0 8 0"/><circle cx="9" cy="9" r="1" fill="currentColor"/><circle cx="15" cy="9" r="1" fill="currentColor"/></svg>Mood Tracker</h2>
                 <div class="top-bar-right">
                     <a href="notifications.php" style="text-decoration: none; color: var(--text-primary); font-weight: 600; padding: 8px 16px; background: var(--light-bg); border-radius: 8px;">
                         🔔 Notifications
@@ -303,7 +303,7 @@ $points_stmt->close();
             <div>
                 <div class="mood-meter-container">
                     <div class="mood-meter-title">
-                        <span>📊</span>
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block;"><line x1="12" y1="2" x2="12" y2="22"/><polyline points="4 7 12 2 20 7"/><polyline points="4 17 12 22 20 17"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
                         <span>How are you feeling today?</span>
                     </div>
 
@@ -327,7 +327,8 @@ $points_stmt->close();
                         <div class="mood-sliders">
                             <div class="slider-group">
                                 <div class="slider-label">
-                                    <span>⚡ Energy Level</span>
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: inline-block; margin-right: 6px;"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                                    Energy Level
                                     <span class="slider-value" id="energyValue">3/5</span>
                                 </div>
                                 <input type="range" id="energySlider" name="energy_level" class="mood-slider" min="1" max="5" value="3" 
@@ -336,7 +337,8 @@ $points_stmt->close();
 
                             <div class="slider-group">
                                 <div class="slider-label">
-                                    <span>😰 Stress Level</span>
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 6px;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                                    Stress Level
                                     <span class="slider-value" id="stressValue">5/10</span>
                                 </div>
                                 <input type="range" id="stressSlider" name="stress_level" class="mood-slider" min="1" max="10" value="5"
@@ -346,13 +348,13 @@ $points_stmt->close();
 
                         <!-- Mood Notes -->
                         <div class="mood-notes">
-                            <label>📝 Additional Notes (Optional)</label>
+                            <label><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 6px;"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15H9v-3L18.5 2.5z"/></svg>Additional Notes (Optional)</label>
                             <textarea name="mood_notes" placeholder="What happened today? Any triggers or positives?"></textarea>
                         </div>
 
                         <!-- Activities -->
                         <div class="mood-activities">
-                            <div class="activities-title">🎯 Today's Activities</div>
+                            <div class="activities-title"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 6px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Today's Activities</div>
                             <div class="activity-tags">
                                 <label class="activity-tag">
                                     <input type="checkbox" name="activities[]" value="exercise" style="display:none;">

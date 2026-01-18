@@ -240,7 +240,7 @@ $stmt->close();
         
         <main class="main-content">
             <div class="top-bar">
-                <h2 style="margin: 0; font-size: 18px; color: var(--text-primary);">🧠 Mental Health Self-Assessment</h2>
+                <h2 style="margin: 0; font-size: 18px; color: var(--text-primary);"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M9 11l3 3L22 4M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Mental Health Self-Assessment</h2>
                 <div class="top-bar-right">
                     <a href="notifications.php" style="text-decoration: none; color: var(--text-primary); font-weight: 600; padding: 8px 16px; background: var(--light-bg); border-radius: 8px;">
                         🔔 Notifications
@@ -251,12 +251,12 @@ $stmt->close();
             <div class="content-area">
                 <div class="page-shell">
                     <div class="page-header">
-                        <h1>🧠 Mental Health Self-Assessment</h1>
+                        <h1><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 12px; vertical-align: middle;"><path d="M9 11l3 3L22 4M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Mental Health Self-Assessment</h1>
                         <p>Reflect on your well-being with these self-guided assessments</p>
                     </div>
 
                     <div class="disclaimer-box">
-                        <strong>⚠️ Important:</strong> These assessments are not medical diagnoses. They are intended for self-reflection only. If you feel distressed or unsafe, please seek professional help or contact a mental health professional immediately.
+                        <strong><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 6px; vertical-align: middle;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Important:</strong> These assessments are not medical diagnoses. They are intended for self-reflection only. If you feel distressed or unsafe, please seek professional help or contact a mental health professional immediately.
                     </div>
 
                     <div class="tests-container">
@@ -267,7 +267,7 @@ $stmt->close();
                                 <p class="test-description"><?php echo htmlspecialchars($test['description']); ?></p>
                                 <div class="test-info">
                                     <span>📋 10 questions</span>
-                                    <span>⏱️ ~5 minutes</span>
+                                    <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 4px; vertical-align: middle;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>~5 minutes</span>
                                 </div>
                             </a>
                         <?php endforeach; ?>
@@ -275,7 +275,7 @@ $stmt->close();
 
                     <?php if (!empty($recent_results)): ?>
                         <div class="recent-results">
-                            <h3>📊 Your Recent Results</h3>
+                            <h3><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><line x1="12" y1="2" x2="12" y2="22"/><polyline points="4 7 12 2 20 7"/><polyline points="4 17 12 22 20 17"/><line x1="2" y1="12" x2="22" y2="12"/></svg>Your Recent Results</h3>
                             <?php foreach ($recent_results as $result): ?>
                                 <div class="result-item">
                                     <div>

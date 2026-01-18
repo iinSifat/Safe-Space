@@ -329,32 +329,32 @@ $page_title = 'Test Results';
                 </div>
 
                 <div class="disclaimer">
-                    <strong>⚠️ Important Reminder:</strong> This assessment is not a medical diagnosis. It is intended for self-reflection only. If you feel distressed or unsafe, please seek professional help or contact a mental health professional immediately.
+                    <strong><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 6px; vertical-align: middle;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Important Reminder:</strong> This assessment is not a medical diagnosis. It is intended for self-reflection only. If you feel distressed or unsafe, please seek professional help or contact a mental health professional immediately.
                 </div>
 
                 <div class="resources-section">
-                    <h3>📚 Next Steps</h3>
+                    <h3><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Next Steps</h3>
                     <div class="resource-item">
-                        <span class="resource-icon">💙</span>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                         <span><strong>Explore Coping Resources:</strong> Discover techniques tailored to your results</span>
                     </div>
                     <div class="resource-item">
-                        <span class="resource-icon">👥</span>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M16 11a2 2 0 100-4 2 2 0 000 4zM9 7a4 4 0 100 8 4 4 0 000-8z"/></svg>
                         <span><strong>Connect with Community:</strong> Share experiences in safe support groups</span>
                     </div>
                     <div class="resource-item">
-                        <span class="resource-icon">🎓</span>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
                         <span><strong>Learn More:</strong> Access educational content about mental wellness</span>
                     </div>
                     <div class="resource-item">
-                        <span class="resource-icon">🤝</span>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M16 11a2 2 0 100-4 2 2 0 000 4zM9 7a4 4 0 100 8 4 4 0 000-8z"/></svg>
                         <span><strong>Seek Professional Help:</strong> Talk to a licensed mental health professional</span>
                     </div>
                 </div>
 
                 <div class="action-buttons">
                     <a href="mental_health_tests.php" class="btn btn-secondary">← Back to Tests</a>
-                    <button type="button" class="btn btn-primary" onclick="window.print()" style="background: rgba(20, 184, 166, 0.1); color: var(--primary); border: 1px solid rgba(20, 184, 166, 0.3);">🖨️ Print Result</button>
+                    <button type="button" class="btn btn-primary" onclick="window.print()" style="background: rgba(20, 184, 166, 0.1); color: var(--primary); border: 1px solid rgba(20, 184, 166, 0.3);"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 6px; vertical-align: middle;"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print Result</button>
                 </div>
             </div>
         </div><!-- End results-container -->
