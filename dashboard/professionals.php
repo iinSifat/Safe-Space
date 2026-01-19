@@ -49,6 +49,37 @@ $professionals = [
 ];
 // Updated by Shuvo - END
 
+// Filter/search handling
+$q = trim($_GET['q'] ?? '');
+$spec = trim($_GET['spec'] ?? '');
+
+// Updated by Shuvo - START
+if ($q !== '' || ($spec !== '' && $spec !== 'All Specializations')) {
+    $filtered = [];
+    $qLower = mb_strtolower($q);
+    foreach ($professionals as $p) {
+        $matchesQ = true;
+        $matchesSpec = true;
+
+        if ($q !== '') {
+            $nameLower = mb_strtolower($p['name']);
+            $specLower = mb_strtolower($p['specialization']);
+            $matchesQ = (mb_strpos($nameLower, $qLower) !== false) || (mb_strpos($specLower, $qLower) !== false);
+        }
+
+        if ($spec !== '' && $spec !== 'All Specializations') {
+            $matchesSpec = ($p['specialization'] === $spec);
+        }
+
+        if ($matchesQ && $matchesSpec) {
+            $filtered[] = $p;
+        }
+    }
+
+    $professionals = $filtered;
+}
+// Updated by Shuvo - END
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -203,6 +234,42 @@ $professionals = [
         .book-btn:hover {
             background: var(--primary-dark);
         }
+
+        /* Updated by Shuvo - START */
+        .suggestions-list {
+            position: absolute;
+            background: white;
+            border: 1px solid var(--light-gray);
+            border-radius: 8px;
+            box-shadow: var(--shadow-sm);
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            width: 100%;
+            max-height: 240px;
+            overflow: auto;
+            z-index: 60;
+            box-sizing: border-box;
+        }
+
+        .suggestion-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+
+        .suggestion-item:hover,
+        .suggestion-item.active {
+            background: rgba(0,0,0,0.04);
+        }
+        
+        /* Keep original search input sizing inside wrapper */
+        .search-wrap .filter-input {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        /* Updated by Shuvo - END */
     </style>
 </head>
 <body>
@@ -228,16 +295,21 @@ $professionals = [
         </div>
 
         <!-- Search & Filters -->
-        <div class="filters">
-            <input type="text" class="filter-input" placeholder="Search by name or specialization...">
-            <select class="filter-input" style="max-width: 250px;">
-                <option>All Specializations</option>
-                <option>Depression & Anxiety</option>
-                <option>Trauma & PTSD</option>
-                <option>Relationship Issues</option>
-                <option>Work Stress & Burnout</option>
+        <?php // Updated by Shuvo - START ?>
+        <form class="filters" method="GET" action="professionals.php">
+            <div class="search-wrap" style="position: relative; flex:1;">
+                <input id="prof-search" type="text" name="q" class="filter-input" placeholder="Search by name or specialization..." autocomplete="off" value="<?php echo htmlspecialchars($q ?? ''); ?>">
+                <div id="suggestions" class="suggestions-list" style="display:none;"></div>
+            </div>
+            <select name="spec" class="filter-input" style="max-width: 250px;" onchange="this.form.submit()">
+                <option<?php echo ($spec === '' || $spec === 'All Specializations') ? ' selected' : ''; ?>>All Specializations</option>
+                <option value="Depression & Anxiety"<?php echo ($spec === 'Depression & Anxiety') ? ' selected' : ''; ?>>Depression & Anxiety</option>
+                <option value="Trauma & PTSD"<?php echo ($spec === 'Trauma & PTSD') ? ' selected' : ''; ?>>Trauma & PTSD</option>
+                <option value="Relationship Issues"<?php echo ($spec === 'Relationship Issues') ? ' selected' : ''; ?>>Relationship Issues</option>
+                <option value="Work Stress & Burnout"<?php echo ($spec === 'Work Stress & Burnout') ? ' selected' : ''; ?>>Work Stress & Burnout</option>
             </select>
-        </div>
+        </form>
+        <?php // Updated by Shuvo - END ?>
 
         <!-- Professionals Grid -->
         <div class="professionals-grid">
@@ -277,6 +349,96 @@ $professionals = [
             <a href="mood_tracker.php" class="btn btn-secondary">Mood Tracker</a>
         </div>
     </div>
+
+    <?php // Updated by Shuvo - START ?>
+    <script>
+        // Build suggestion source from server-side data
+        const suggestionSource = <?php
+            $items = [];
+            foreach ($professionals as $p) {
+                $items[] = $p['name'];
+                $items[] = $p['specialization'];
+            }
+            $items = array_values(array_unique($items));
+            echo json_encode($items, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT);
+        ?>;
+
+        const searchInput = document.getElementById('prof-search');
+        const suggestionsEl = document.getElementById('suggestions');
+        let activeIndex = -1;
+        let currentList = [];
+
+        function debounce(fn, wait){
+            let t; return function(...args){ clearTimeout(t); t = setTimeout(()=>fn.apply(this,args), wait); };
+        }
+
+        function renderSuggestions(list){
+            currentList = list;
+            activeIndex = -1;
+            if (!list || list.length === 0) {
+                suggestionsEl.style.display = 'none';
+                suggestionsEl.innerHTML = '';
+                return;
+            }
+            suggestionsEl.style.display = 'block';
+            suggestionsEl.innerHTML = list.map((it, idx) =>
+                `<div class="suggestion-item" data-idx="${idx}" role="option">${it}</div>`
+            ).join('');
+        }
+
+        function pickSuggestion(value){
+            searchInput.value = value;
+            suggestionsEl.style.display = 'none';
+            // submit the form to apply search
+            searchInput.form.submit();
+        }
+
+        const update = debounce(function(){
+            const q = (searchInput.value || '').trim().toLowerCase();
+            if (q === '') { renderSuggestions([]); return; }
+            const matches = suggestionSource.filter(s => s.toLowerCase().includes(q));
+            renderSuggestions(matches.slice(0,8));
+        }, 150);
+
+        searchInput.addEventListener('input', update);
+
+        // Click suggestions
+        suggestionsEl.addEventListener('click', function(e){
+            const item = e.target.closest('.suggestion-item');
+            if (item) pickSuggestion(item.textContent.trim());
+        });
+
+        // Keyboard navigation
+        searchInput.addEventListener('keydown', function(e){
+            const items = suggestionsEl.querySelectorAll('.suggestion-item');
+            if (items.length === 0) return;
+            if (e.key === 'ArrowDown'){
+                e.preventDefault(); activeIndex = Math.min(activeIndex + 1, items.length -1);
+                items.forEach(i=>i.classList.remove('active'));
+                items[activeIndex].classList.add('active');
+                items[activeIndex].scrollIntoView({block:'nearest'});
+            } else if (e.key === 'ArrowUp'){
+                e.preventDefault(); activeIndex = Math.max(activeIndex - 1, 0);
+                items.forEach(i=>i.classList.remove('active'));
+                items[activeIndex].classList.add('active');
+                items[activeIndex].scrollIntoView({block:'nearest'});
+            } else if (e.key === 'Enter'){
+                if (activeIndex >= 0 && items[activeIndex]){
+                    e.preventDefault(); pickSuggestion(items[activeIndex].textContent.trim());
+                }
+            } else if (e.key === 'Escape'){
+                suggestionsEl.style.display = 'none';
+            }
+        });
+
+        // hide on outside click
+        document.addEventListener('click', function(e){
+            if (!e.target.closest('.search-wrap')) {
+                suggestionsEl.style.display = 'none';
+            }
+        });
+    </script>
+    <?php // Updated by Shuvo - END ?>
 </body>
 </html>
             </div><!-- End content-area -->

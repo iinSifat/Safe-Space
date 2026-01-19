@@ -11,6 +11,7 @@ $user_id = get_user_id();
 $db = Database::getInstance();
 $conn = $db->getConnection();
 $post_id = (int)($_GET['post_id'] ?? 0);
+$is_ajax = isset($_GET['ajax']) && $_GET['ajax'] == '1';
 
 // Get post details
 $post_stmt = $conn->prepare("
@@ -27,6 +28,11 @@ $post = $post_result->fetch_assoc();
 $post_stmt->close();
 
 if (!$post) {
+    if ($is_ajax) {
+        http_response_code(404);
+        echo '<div style="text-align: center; padding: 2rem;"><p style="color: var(--error);">Post not found</p></div>';
+        exit;
+    }
     redirect('forum.php');
 }
 
@@ -117,6 +123,13 @@ while ($reaction_row = $reaction_counts_result->fetch_assoc()) {
 $reaction_counts_stmt->close();
 
 $total_reactions = array_sum($reaction_counts);
+
+// If AJAX request, output just the content
+if ($is_ajax) {
+    header('Content-Type: text/html; charset=utf-8');
+    include 'includes/post-detail-modal-content.php';
+    exit;
+}
 
 ?>
 <!DOCTYPE html>

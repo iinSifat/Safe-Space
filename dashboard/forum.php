@@ -235,6 +235,83 @@ while ($row = $posts_result->fetch_assoc()) {
             transform: translateY(-2px);
         }
 
+        /* Post Details Modal */
+        .post-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity var(--transition-normal);
+            backdrop-filter: blur(4px);
+        }
+
+        .post-modal-overlay.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+            overflow-y: auto;
+        }
+
+        .post-modal-content {
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: 0 20px 60px rgba(12, 27, 51, 0.3);
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp var(--transition-normal) ease;
+            position: relative;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .post-modal-close {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            background: none;
+            border: none;
+            font-size: 1.8rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: color var(--transition-fast);
+            z-index: 1001;
+        }
+
+        .post-modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        @media (max-width: 768px) {
+            .post-modal-content {
+                width: 95%;
+                max-height: 95vh;
+                border-radius: var(--radius-md);
+            }
+
+            .post-modal-close {
+                top: 1rem;
+                right: 1rem;
+                font-size: 1.5rem;
+            }
+        }
+
         .post-category {
             display: inline-block;
             background: rgba(107, 155, 209, 0.15);
@@ -338,7 +415,7 @@ while ($row = $posts_result->fetch_assoc()) {
         <div class="post-list">
             <?php if (count($posts) > 0): ?>
                 <?php foreach ($posts as $post): ?>
-                    <div class="post-card" onclick="location.href='forum_view.php?post_id=<?php echo $post['post_id']; ?>'">
+                    <div class="post-card" onclick="openPostModal(<?php echo $post['post_id']; ?>)">
                         <div class="post-category"><?php echo htmlspecialchars($post['category']); ?></div>
                         <h3 class="post-title"><?php echo htmlspecialchars($post['title']); ?></h3>
                         <div class="post-meta">
@@ -403,7 +480,44 @@ while ($row = $posts_result->fetch_assoc()) {
         </div>
     </div>
 
+    <!-- Post Details Modal -->
+    <div class="post-modal-overlay" id="postModalOverlay">
+        <div class="post-modal-content" id="postModalContent">
+            <button class="post-modal-close" onclick="closePostModal()">✕</button>
+            <div id="postDetailContainer" style="padding: 2rem;">
+                <div style="text-align: center; padding: 2rem;">
+                    <p style="color: var(--text-secondary);">Loading post details...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
+        function openPostModal(postId) {
+            const overlay = document.getElementById('postModalOverlay');
+            const container = document.getElementById('postDetailContainer');
+            
+            // Show overlay
+            overlay.classList.add('active');
+            container.innerHTML = '<div style="text-align: center; padding: 2rem;"><p style="color: var(--text-secondary);">Loading post details...</p></div>';
+            
+            // Fetch post details via AJAX
+            fetch(`forum_view.php?post_id=${postId}&ajax=1`)
+                .then(response => response.text())
+                .then(html => {
+                    container.innerHTML = html;
+                })
+                .catch(err => {
+                    console.error(err);
+                    container.innerHTML = '<div style="text-align: center; padding: 2rem;"><p style="color: var(--error);">Failed to load post details</p></div>';
+                });
+        }
+
+        function closePostModal() {
+            const overlay = document.getElementById('postModalOverlay');
+            overlay.classList.remove('active');
+        }
+
         function openNewPostModal() {
             document.getElementById('newPostModal').classList.add('show');
         }
@@ -415,6 +529,20 @@ while ($row = $posts_result->fetch_assoc()) {
         // Close modal when clicking outside
         document.getElementById('newPostModal')?.addEventListener('click', function(e) {
             if (e.target === this) {
+                closeNewPostModal();
+            }
+        });
+
+        document.getElementById('postModalOverlay')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePostModal();
+            }
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closePostModal();
                 closeNewPostModal();
             }
         });
