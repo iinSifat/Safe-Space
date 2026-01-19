@@ -294,6 +294,22 @@ CREATE TABLE forum_replies (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==============================================
+-- 12. FORUM POST REACTIONS TABLE (LinkedIn-style reactions)
+-- ==============================================
+CREATE TABLE forum_post_reactions (
+    reaction_id INT AUTO_INCREMENT PRIMARY KEY,
+    post_id INT NOT NULL,
+    user_id INT NOT NULL,
+    reaction_type ENUM('like', 'celebrate', 'support', 'love', 'insightful', 'curious') NOT NULL DEFAULT 'like',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_post_user (post_id, user_id),
+    INDEX idx_post_reaction (post_id, reaction_type),
+    FOREIGN KEY (post_id) REFERENCES forum_posts(post_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ==============================================
 -- Insert default admin account
 -- Password: Admin@123 (hashed with bcrypt)
 -- ==============================================
