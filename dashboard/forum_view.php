@@ -79,6 +79,45 @@ while ($row = $replies_result->fetch_assoc()) {
 }
 $replies_stmt->close();
 
+// Reaction data for the current post
+$reaction_types = ['like', 'celebrate', 'support', 'love', 'insightful', 'curious'];
+$reaction_assets = [
+    'like' => '../images/reactions/like.png',
+    'celebrate' => '../images/reactions/Linkedin-Celebrate-Icon-ClappingHands500.png',
+    'support' => '../images/reactions/Linkedin-Support-Icon-HeartinHand500.png',
+    'love' => '../images/reactions/Linkedin-Love-Icon-Heart500.png',
+    'insightful' => '../images/reactions/Linkedin-Insightful-Icon-Lamp500.png',
+    'curious' => '../images/reactions/Linkedin-Curious-Icon-PurpleSmiley500.png',
+];
+
+$reaction_counts = array_fill_keys($reaction_types, 0);
+$user_reaction = null;
+
+// Get the current user's reaction (if any)
+$user_reaction_stmt = $conn->prepare("SELECT reaction_type FROM forum_post_reactions WHERE post_id = ? AND user_id = ? LIMIT 1");
+$user_reaction_stmt->bind_param("ii", $post_id, $user_id);
+$user_reaction_stmt->execute();
+$user_reaction_result = $user_reaction_stmt->get_result();
+if ($user_reaction_row = $user_reaction_result->fetch_assoc()) {
+    $user_reaction = $user_reaction_row['reaction_type'];
+}
+$user_reaction_stmt->close();
+
+// Get aggregate reaction counts for the post
+$reaction_counts_stmt = $conn->prepare("SELECT reaction_type, COUNT(*) as total FROM forum_post_reactions WHERE post_id = ? GROUP BY reaction_type");
+$reaction_counts_stmt->bind_param("i", $post_id);
+$reaction_counts_stmt->execute();
+$reaction_counts_result = $reaction_counts_stmt->get_result();
+while ($reaction_row = $reaction_counts_result->fetch_assoc()) {
+    $type = $reaction_row['reaction_type'];
+    if (in_array($type, $reaction_types, true)) {
+        $reaction_counts[$type] = (int)$reaction_row['total'];
+    }
+}
+$reaction_counts_stmt->close();
+
+$total_reactions = array_sum($reaction_counts);
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -195,12 +234,176 @@ $replies_stmt->close();
             min-height: 120px;
         }
 
+        /* LinkedIn-style reaction bar */
+        .post-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            background: white;
+            border: 1px solid var(--light-gray);
+            border-radius: var(--radius-md);
+            padding: 0.75rem 1rem;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 1.5rem;
+        }
+
+        .post-actions-left {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .post-actions-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .action-chip {
+            border: 1px solid var(--light-gray);
+            background: var(--light-bg);
+            color: var(--text-primary);
+            border-radius: 999px;
+            padding: 0.4rem 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            transition: all var(--transition-fast);
+        }
+
+        .action-chip:hover {
+            background: white;
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-sm);
+            color: var(--primary-dark);
+        }
+
+        .reaction-wrapper {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .reaction-trigger {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: white;
+            border: 1px solid var(--light-gray);
+            padding: 0.35rem 0.75rem;
+            border-radius: 999px;
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+            transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+        }
+
+        .reaction-trigger img {
+            width: 22px;
+            height: 22px;
+            object-fit: contain;
+        }
+
+        .reaction-trigger:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
+        }
+
+        .reaction-popup {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(-2px) scale(0.98);
+            display: flex;
+            gap: 0.25rem;
+            padding: 0.5rem 0.6rem;
+            background: white;
+            border-radius: 999px;
+            box-shadow: 0 12px 30px rgba(12, 27, 51, 0.15);
+            border: 1px solid var(--light-gray);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity var(--transition-fast), transform var(--transition-fast);
+            z-index: 20;
+        }
+
+        .reaction-wrapper:hover .reaction-popup,
+        .reaction-wrapper.show-popup .reaction-popup {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(-50%) translateY(-2px) scale(1);
+        }
+
+        .reaction-option {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px;
+            cursor: pointer;
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+        }
+
+        .reaction-option:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .reaction-option img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .reaction-count-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: var(--light-bg);
+            padding: 0.35rem 0.75rem;
+            border-radius: 999px;
+            border: 1px solid var(--light-gray);
+        }
+
+        .reaction-count-chip img {
+            width: 18px;
+            height: 18px;
+        }
+
+        .post-date-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
         @media (max-width: 768px) {
             .post-header,
             .post-content,
             .replies-section,
             .new-reply-section {
                 padding: 1.5rem;
+            }
+
+            .post-actions {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .post-actions-left {
+                width: 100%;
+                flex-wrap: wrap;
+                gap: 0.5rem;
             }
         }
     </style>
@@ -228,6 +431,36 @@ $replies_stmt->close();
             <?php echo htmlspecialchars($post['content']); ?>
         </div>
 
+        <!-- Reactions & Actions -->
+        <div class="post-actions" aria-label="Post actions">
+            <div class="post-actions-left">
+                <div class="reaction-wrapper" id="reactionWrapper" data-post-id="<?php echo $post_id; ?>">
+                    <button type="button" class="reaction-trigger" id="reactionTrigger" aria-haspopup="true" aria-expanded="false">
+                        <img id="activeReactionIcon" src="<?php echo htmlspecialchars($reaction_assets[$user_reaction ?? 'like']); ?>" alt="Current reaction">
+                        <span id="activeReactionLabel" style="font-weight: 700; color: var(--text-primary);">
+                            <?php echo $user_reaction ? ucfirst($user_reaction) : 'Like'; ?>
+                        </span>
+                    </button>
+                    <div class="reaction-popup" id="reactionPopup" role="menu" aria-label="Choose a reaction">
+                        <?php foreach ($reaction_types as $reaction_type): ?>
+                            <button class="reaction-option" data-reaction="<?php echo $reaction_type; ?>" aria-label="React with <?php echo ucfirst($reaction_type); ?>">
+                                <img src="<?php echo htmlspecialchars($reaction_assets[$reaction_type]); ?>" alt="<?php echo ucfirst($reaction_type); ?> icon">
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <button class="action-chip" type="button" data-scroll-target="#replyFormSection">💬 Comment</button>
+                <button class="action-chip" type="button" id="sharePostButton">↗ Share</button>
+            </div>
+            <div class="post-actions-meta">
+                <span class="reaction-count-chip" id="reactionCountChip">
+                    <img src="<?php echo htmlspecialchars($reaction_assets['like']); ?>" alt="Reactions">
+                    <span><strong id="reactionTotal"><?php echo $total_reactions; ?></strong> reactions</span>
+                </span>
+                <span class="post-date-chip">Posted <?php echo date('M j, Y', strtotime($post['created_at'])); ?></span>
+            </div>
+        </div>
+
         <!-- Replies Section -->
         <div class="replies-section">
             <div class="replies-title"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Replies (<?php echo count($replies); ?>)</div>
@@ -252,13 +485,13 @@ $replies_stmt->close();
         </div>
 
         <!-- New Reply Section -->
-        <div class="new-reply-section">
+        <div class="new-reply-section" id="replyFormSection">
             <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 1rem;">
                 Add Your Support
             </h3>
             <form method="POST" action="">
                 <div class="reply-form-group">
-                    <textarea name="reply_content" placeholder="Share your thoughts, experiences, or advice..." required></textarea>
+                    <textarea id="replyForm" name="reply_content" placeholder="Share your thoughts, experiences, or advice..." required></textarea>
                 </div>
                 <div style="display: flex; gap: 1rem;">
                     <button type="submit" name="add_reply" class="btn btn-primary">Post Reply (+10 pts)</button>
@@ -273,5 +506,134 @@ $replies_stmt->close();
             <a href="mood_tracker.php" class="btn btn-secondary">Mood Tracker</a>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const reactionWrapper = document.getElementById('reactionWrapper');
+            const reactionPopup = document.getElementById('reactionPopup');
+            const reactionTrigger = document.getElementById('reactionTrigger');
+            const activeReactionIcon = document.getElementById('activeReactionIcon');
+            const activeReactionLabel = document.getElementById('activeReactionLabel');
+            const reactionTotalEl = document.getElementById('reactionTotal');
+            const sharePostButton = document.getElementById('sharePostButton');
+            const scrollButtons = document.querySelectorAll('[data-scroll-target]');
+
+            const reactionAssets = <?php echo json_encode($reaction_assets); ?>;
+            const reactionLabels = <?php echo json_encode(array_combine($reaction_types, array_map('ucfirst', $reaction_types))); ?>;
+            let reactionCounts = <?php echo json_encode($reaction_counts); ?>;
+            let userReaction = <?php echo $user_reaction ? json_encode($user_reaction) : 'null'; ?>;
+            const postId = <?php echo $post_id; ?>;
+
+            const getTotalReactions = () => Object.values(reactionCounts).reduce((total, value) => total + parseInt(value || 0, 10), 0);
+
+            const setActiveReaction = (type) => {
+                const fallback = 'like';
+                const safeType = reactionAssets[type] ? type : fallback;
+                activeReactionIcon.src = reactionAssets[safeType];
+                activeReactionLabel.textContent = reactionLabels[safeType] || 'Like';
+                reactionTotalEl.textContent = getTotalReactions();
+            };
+
+            const showPopup = () => {
+                reactionWrapper.classList.add('show-popup');
+                reactionTrigger.setAttribute('aria-expanded', 'true');
+            };
+
+            const hidePopup = () => {
+                reactionWrapper.classList.remove('show-popup');
+                reactionTrigger.setAttribute('aria-expanded', 'false');
+            };
+
+            // Desktop hover behavior
+            reactionTrigger.addEventListener('mouseenter', showPopup);
+            reactionWrapper.addEventListener('mouseleave', hidePopup);
+            reactionTrigger.addEventListener('focus', showPopup);
+            reactionTrigger.addEventListener('blur', hidePopup);
+
+            // Mobile long-press behavior
+            let pressTimer;
+            reactionTrigger.addEventListener('touchstart', () => {
+                pressTimer = setTimeout(showPopup, 260);
+            });
+            reactionTrigger.addEventListener('touchend', () => {
+                clearTimeout(pressTimer);
+                setTimeout(hidePopup, 240);
+            });
+
+            // Quick tap defaults to Like (LinkedIn behavior)
+            reactionTrigger.addEventListener('click', () => {
+                if (!reactionWrapper.classList.contains('show-popup')) {
+                    sendReaction(userReaction || 'like');
+                }
+            });
+
+            // Reaction selection
+            reactionPopup.querySelectorAll('.reaction-option').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const selected = btn.getAttribute('data-reaction');
+                    sendReaction(selected);
+                    hidePopup();
+                });
+            });
+
+            const sendReaction = async (reactionType) => {
+                try {
+                    const response = await fetch('forum_reaction_handler.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({
+                            post_id: postId,
+                            reaction_type: reactionType,
+                        }),
+                    });
+
+                    const result = await response.json();
+
+                    if (!result.success) {
+                        throw new Error(result.message || 'Unable to update reaction');
+                    }
+
+                    reactionCounts = result.counts || reactionCounts;
+                    userReaction = result.reaction || reactionType;
+                    reactionTotalEl.textContent = result.total_reactions ?? getTotalReactions();
+                    setActiveReaction(userReaction);
+                } catch (error) {
+                    console.error(error);
+                    alert('Unable to save your reaction right now. Please try again.');
+                }
+            };
+
+            // Initialize view
+            setActiveReaction(userReaction || 'like');
+
+            // Scroll to comment/reply
+            scrollButtons.forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const target = document.querySelector(btn.getAttribute('data-scroll-target'));
+                    if (target) {
+                        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                });
+            });
+
+            // Share / copy link
+            sharePostButton?.addEventListener('click', async () => {
+                const link = window.location.href;
+                try {
+                    await navigator.clipboard.writeText(link);
+                    sharePostButton.textContent = 'Link copied!';
+                    setTimeout(() => {
+                        sharePostButton.textContent = '↗ Share';
+                    }, 1500);
+                } catch (err) {
+                    console.error(err);
+                    window.prompt('Copy this link', link);
+                }
+            });
+        });
+    </script>
 </body>
 </html>
