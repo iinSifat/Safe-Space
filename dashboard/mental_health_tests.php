@@ -29,7 +29,6 @@ $stmt = $conn->prepare("
 $stmt->execute();
 $result = $stmt->get_result();
 $tests = $result->fetch_all(MYSQLI_ASSOC);
-$stmt->close();
 
 // Fetch user's recent test results (last 5)
 $stmt = $conn->prepare("
@@ -44,77 +43,89 @@ $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $result = $stmt->get_result();
 $recent_results = $result->fetch_all(MYSQLI_ASSOC);
-$stmt->close();
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $page_title; ?> | Safe Space</title>
+    <title><?php echo $page_title; ?></title>
     <link rel="stylesheet" href="../assets/css/styles.css">
     <link rel="stylesheet" href="includes/dashboard-layout.css">
     <style>
         .tests-container {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 24px;
-            margin-bottom: 40px;
+            grid-template-columns: repeat(2, minmax(280px, 340px));
+            justify-content: center;
+            gap: 22px;
         }
+
         .test-card {
             position: relative;
-            background-size: contain;
-            background-position: center;
-            background-repeat: no-repeat;
-            border: 1px solid rgba(12, 27, 51, 0.08);
-            border-radius: 16px;
-            padding: 24px;
-            transition: all 0.3s ease;
-            cursor: pointer;
             display: flex;
-            flex-direction: column;
-            gap: 16px;
-            color: #fff;
-            aspect-ratio: 16 / 9;
+            align-items: stretch;
+            aspect-ratio: 1 / 1;
+            border-radius: 18px;
             overflow: hidden;
+            padding: 0;
+            background-color: rgba(12, 27, 51, 0.12);
+            background-size: cover;
+            background-position: center;
+            box-shadow: var(--shadow-md);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
-        .test-card::before {
-            content: "";
+
+        .test-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .test-card:hover::after {
+            content: '';
             position: absolute;
             inset: 0;
-            background: linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.6) 100%);
-            z-index: 1;
+            background: rgba(12, 27, 51, 0.12);
+            pointer-events: none;
         }
-        .test-card > * {
-            position: relative;
-            z-index: 2;
+
+        .test-card:focus-visible {
+            outline: 3px solid rgba(20, 184, 166, 0.6);
+            outline-offset: 3px;
         }
-        .test-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 32px rgba(12, 27, 51, 0.24);
-            border-color: rgba(255, 255, 255, 0.4);
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
         }
-        .test-icon { display: none; }
-        .test-card.stress-test { background-image: url('../images/stress.png'); }
-        .test-card.anxiety-test { background-image: url('../images/anxiety.jpg'); }
-        .test-card.ocd-test { background-image: url('../images/ocd_2.jfif'); }
-        .test-card.depression-test { background-image: url('../images/depression.png'); }
-        
-        .test-name {
-            font-size: 20px;
-            font-weight: 800;
-            color: #fff;
-            margin: 0;
-            text-shadow: 0 2px 12px rgba(0,0,0,0.45);
+
+        /* Background images per test (relative to /dashboard) */
+        .test-card.stress-test {
+            background-image:
+                url('../images/stressed.png');
         }
-        .test-description {
-            font-size: 15px;
-            color: #f5f7fa;
-            margin: 0;
-            flex-grow: 1;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.35);
+
+        .test-card.anxiety-test {
+            background-image:
+                url('../images/anxiety.png');
         }
+
+        .test-card.ocd-test {
+            background-image:
+                url('../images/ocd.jpeg');
+        }
+
+        .test-card.depression-test {
+            background-image:
+                url('../images/depression.jpeg');
+        }
+
         .test-info {
             display: flex;
             gap: 16px;
@@ -129,7 +140,7 @@ $stmt->close();
             gap: 4px;
         }
         .start-btn {
-            background: linear-gradient(135deg, var(--primary), #3ad0be);
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
             color: white;
             border: none;
             border-radius: 10px;
@@ -155,7 +166,7 @@ $stmt->close();
             padding: 16px;
             margin-bottom: 32px;
             font-size: 14px;
-            color: var(--text);
+            color: var(--text-primary);
             line-height: 1.6;
         }
         .disclaimer-box strong {
@@ -171,7 +182,7 @@ $stmt->close();
         .recent-results h3 {
             font-size: 18px;
             font-weight: 700;
-            color: var(--text);
+            color: var(--text-primary);
             margin: 0 0 16px;
         }
         .result-item {
@@ -189,18 +200,18 @@ $stmt->close();
         }
         .result-test-name {
             font-weight: 600;
-            color: var(--text);
+            color: var(--text-primary);
         }
         .result-category {
             background: rgba(20, 184, 166, 0.15);
-            color: var(--primary);
+            color: var(--primary-color);
             padding: 4px 12px;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 600;
         }
         .result-date {
-            color: var(--muted);
+            color: var(--text-secondary);
             font-size: 12px;
         }
         
@@ -210,12 +221,12 @@ $stmt->close();
         .page-header h1 {
             font-size: 32px;
             font-weight: 800;
-            color: var(--text);
+            color: var(--text-primary);
             margin: 0 0 8px;
         }
         .page-header p {
             font-size: 16px;
-            color: var(--muted);
+            color: var(--text-secondary);
             margin: 0;
         }
 
@@ -224,7 +235,7 @@ $stmt->close();
             margin: 0 auto;
         }
         
-        @media (max-width: 900px) {
+        @media (max-width: 720px) {
             .tests-container {
                 grid-template-columns: 1fr;
             }
@@ -261,14 +272,9 @@ $stmt->close();
 
                     <div class="tests-container">
                         <?php foreach ($tests as $test): ?>
-                            <a href="take_test.php?test_id=<?php echo $test['test_id']; ?>" class="test-card <?php echo $test['test_slug']; ?>" style="text-decoration: none; color: inherit;">
-                                <div class="test-icon"><?php echo $test['test_icon']; ?></div>
-                                <h3 class="test-name"><?php echo htmlspecialchars($test['test_name']); ?></h3>
-                                <p class="test-description"><?php echo htmlspecialchars($test['description']); ?></p>
-                                <div class="test-info">
-                                    <span>📋 10 questions</span>
-                                    <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 4px; vertical-align: middle;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>~5 minutes</span>
-                                </div>
+                            <?php $slug_class = preg_replace('~[^a-z0-9\-]~i', '', $test['test_slug']); ?>
+                            <a href="take_test.php?test_id=<?php echo (int)$test['test_id']; ?>" class="test-card <?php echo htmlspecialchars($slug_class); ?>" style="text-decoration: none; color: inherit;" aria-label="Start <?php echo htmlspecialchars($test['test_name']); ?>">
+                                <span class="sr-only">Start <?php echo htmlspecialchars($test['test_name']); ?></span>
                             </a>
                         <?php endforeach; ?>
                     </div>

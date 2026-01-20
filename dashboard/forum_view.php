@@ -15,7 +15,7 @@ $post_id = (int)($_GET['post_id'] ?? 0);
 // Get post details
 $post_stmt = $conn->prepare("
     SELECT fp.post_id, fp.title, fp.category, fp.content, fp.created_at, 
-           fp.view_count, u.username
+           fp.view_count, fp.user_id, u.username, u.is_anonymous
     FROM forum_posts fp
     JOIN users u ON fp.user_id = u.user_id
     WHERE fp.post_id = ? AND fp.status = 'published'
@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_reply'])) {
 
 // Get replies
 $replies_stmt = $conn->prepare("
-    SELECT fr.reply_id, fr.content, fr.created_at, fr.helpful_count, u.username
+    SELECT fr.reply_id, fr.user_id, fr.content, fr.created_at, fr.helpful_count, u.username, u.is_anonymous
     FROM forum_replies fr
     JOIN users u ON fr.user_id = u.user_id
     WHERE fr.post_id = ? AND fr.status = 'published'
@@ -317,8 +317,8 @@ $total_reactions = array_sum($reaction_counts);
         .reaction-popup {
             position: absolute;
             bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%) translateY(-2px) scale(0.98);
+            left: 0;
+            transform: translateY(-2px) scale(0.98);
             display: flex;
             gap: 0.25rem;
             padding: 0.5rem 0.6rem;
@@ -336,7 +336,7 @@ $total_reactions = array_sum($reaction_counts);
         .reaction-wrapper.show-popup .reaction-popup {
             opacity: 1;
             pointer-events: auto;
-            transform: translateX(-50%) translateY(-2px) scale(1);
+            transform: translateY(-2px) scale(1);
         }
 
         .reaction-option {
@@ -419,8 +419,13 @@ $total_reactions = array_sum($reaction_counts);
             <h1 style="font-size: 2rem; color: var(--text-primary); margin-bottom: 1rem;">
                 <?php echo htmlspecialchars($post['title']); ?>
             </h1>
+            <?php
+                $post_author = !empty($post['is_anonymous'])
+                    ? get_anonymous_display_name($post['user_id'])
+                    : $post['username'];
+            ?>
             <div class="post-header-meta">
-                <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 4px; vertical-align: middle;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/></svg><?php echo htmlspecialchars($post['username']); ?></span>
+                <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 4px; vertical-align: middle;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/></svg><?php echo htmlspecialchars($post_author); ?></span>
                 <span>📅 <?php echo date('M j, Y \a\t g:i A', strtotime($post['created_at'])); ?></span>
                 <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 4px; vertical-align: middle;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><?php echo $post['view_count']; ?> views</span>
             </div>
@@ -467,11 +472,16 @@ $total_reactions = array_sum($reaction_counts);
 
             <?php if (count($replies) > 0): ?>
                 <?php foreach ($replies as $reply): ?>
+                    <?php
+                        $reply_author = !empty($reply['is_anonymous'])
+                            ? get_anonymous_display_name($reply['user_id'])
+                            : $reply['username'];
+                    ?>
                     <div class="reply-item">
                         <div class="reply-meta">
-                            <span class="reply-author"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 4px; vertical-align: middle;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/></svg><?php echo htmlspecialchars($reply['username']); ?></span>
+                            <span class="reply-author"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 4px; vertical-align: middle;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/></svg><?php echo htmlspecialchars($reply_author); ?></span>
                             <span class="reply-date"><?php echo date('M j, Y \a\t g:i A', strtotime($reply['created_at'])); ?></span>
-                        </span>
+                        </div>
                         <div class="reply-content" style="margin-top: 0.5rem;">
                             <?php echo htmlspecialchars($reply['content']); ?>
                         </div>

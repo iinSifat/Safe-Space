@@ -38,6 +38,15 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </svg>
             Forum
         </a>
+        <a href="blogs.php" class="<?php echo $current_page === 'blogs.php' || $current_page === 'blog_view.php' || $current_page === 'blog_edit.php' ? 'active' : ''; ?>">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <path d="M7 8h10"/>
+                <path d="M7 12h10"/>
+                <path d="M7 16h6"/>
+            </svg>
+            Blog
+        </a>
         <a href="professionals.php" class="<?php echo $current_page === 'professionals.php' ? 'active' : ''; ?>">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/>
@@ -70,3 +79,15 @@ $current_page = basename($_SERVER['PHP_SELF']);
         </a>
     </nav>
 </aside>
+
+<script>
+    // If the dashboard is rendered inside the forum overlay iframe,
+    // force sidebar navigation to open as a full page (top window).
+    (function () {
+        if (window.self === window.top) return;
+
+        document.querySelectorAll('.sidebar .nav-links a[href]').forEach(function (a) {
+            a.setAttribute('target', '_top');
+        });
+    })();
+</script>

@@ -17,7 +17,7 @@ define('DB_NAME', 'safe_space_db');
 
 // Site Configuration
 define('SITE_NAME', 'Safe Space');
-define('SITE_URL', 'http://localhost/DBMS/');
+define('SITE_URL', 'http://localhost/SafeSpace/');
 define('SITE_EMAIL', 'support@safespace.com');
 
 // Security Configuration
@@ -89,6 +89,18 @@ function sanitize_input($data) {
     $data = stripslashes($data);
     $data = htmlspecialchars($data, ENT_QUOTES, 'UTF-8');
     return $data;
+}
+
+function get_anonymous_display_name($user_id) {
+    $user_id = (int)$user_id;
+    if ($user_id <= 0) {
+        return 'Anonymous';
+    }
+
+    $salt = defined('SITE_URL') ? SITE_URL : 'SafeSpace';
+    $hash = hash('sha256', $salt . '|anon|' . $user_id);
+    $tag = strtoupper(substr($hash, 0, 6));
+    return 'Anonymous-' . $tag;
 }
 
 function validate_email($email) {

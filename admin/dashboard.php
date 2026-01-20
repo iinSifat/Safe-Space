@@ -21,6 +21,17 @@ $admin_id = get_admin_id();
 $admin_name = $_SESSION['admin_name'];
 $admin_role = $_SESSION['admin_role'];
 
+$db = Database::getInstance();
+$conn = $db->getConnection();
+
+// Quick stats
+$total_admins = (int)($conn->query('SELECT COUNT(*) AS c FROM admins')?->fetch_assoc()['c'] ?? 0);
+$total_users = (int)($conn->query('SELECT COUNT(*) AS c FROM users')?->fetch_assoc()['c'] ?? 0);
+$total_professionals = (int)($conn->query("SELECT COUNT(*) AS c FROM users WHERE user_type = 'professional'")?->fetch_assoc()['c'] ?? 0);
+$total_volunteers = (int)($conn->query("SELECT COUNT(*) AS c FROM users WHERE user_type = 'volunteer'")?->fetch_assoc()['c'] ?? 0);
+$total_forum_posts = (int)($conn->query("SELECT COUNT(*) AS c FROM forum_posts WHERE status = 'published'")?->fetch_assoc()['c'] ?? 0);
+$total_blog_posts = (int)($conn->query("SELECT COUNT(*) AS c FROM blog_posts WHERE status = 'published'")?->fetch_assoc()['c'] ?? 0);
+
 $page_title = "Admin Dashboard";
 ?>
 <!DOCTYPE html>
@@ -142,7 +153,17 @@ $page_title = "Admin Dashboard";
                         <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                     </svg>
                 </div>
-                <div class="stat-number">-</div>
+                <div class="stat-number"><?php echo (int)$total_admins; ?></div>
+                <div class="stat-label">Total Admins</div>
+            </div>
+
+            <div class="admin-card">
+                <div class="card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                    </svg>
+                </div>
+                <div class="stat-number"><?php echo (int)$total_users; ?></div>
                 <div class="stat-label">Total Users</div>
             </div>
 
@@ -152,7 +173,7 @@ $page_title = "Admin Dashboard";
                         <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
                     </svg>
                 </div>
-                <div class="stat-number">-</div>
+                <div class="stat-number"><?php echo (int)$total_professionals; ?></div>
                 <div class="stat-label">Professionals</div>
             </div>
 
@@ -162,7 +183,7 @@ $page_title = "Admin Dashboard";
                         <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3z"/>
                     </svg>
                 </div>
-                <div class="stat-number">-</div>
+                <div class="stat-number"><?php echo (int)$total_volunteers; ?></div>
                 <div class="stat-label">Volunteers</div>
             </div>
 
@@ -172,8 +193,18 @@ $page_title = "Admin Dashboard";
                         <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
                     </svg>
                 </div>
-                <div class="stat-number">-</div>
+                <div class="stat-number"><?php echo (int)$total_forum_posts; ?></div>
                 <div class="stat-label">Forum Posts</div>
+            </div>
+
+            <div class="admin-card">
+                <div class="card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 14H7v-2h10v2zm0-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                    </svg>
+                </div>
+                <div class="stat-number"><?php echo (int)$total_blog_posts; ?></div>
+                <div class="stat-label">Blog Posts</div>
             </div>
         </div>
 
@@ -192,7 +223,10 @@ $page_title = "Admin Dashboard";
                 <p style="color: var(--text-secondary); margin-bottom: 1rem;">
                     Review and moderate forum posts, comments, and reported content.
                 </p>
-                <span class="coming-soon">Coming Soon</span>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <a class="btn" href="forum_posts.php" style="background: var(--primary-color); color: #fff;">Manage Forum Posts</a>
+                    <a class="btn" href="blog_posts.php" style="background: var(--secondary-color); color: #fff;">Manage Blog Posts</a>
+                </div>
             </div>
 
             <div class="admin-card">

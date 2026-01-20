@@ -48,8 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_post'])) {
 $selected_category = sanitize_input($_GET['category'] ?? '');
 
 // Get posts
-$query = "SELECT fp.post_id, fp.title, fp.category, fp.view_count, fp.reply_count, fp.created_at, 
-                 u.username
+$query = "SELECT fp.post_id, fp.user_id, fp.title, fp.category, fp.view_count, fp.reply_count, fp.created_at, 
+           u.username, u.is_anonymous
           FROM forum_posts fp
           JOIN users u ON fp.user_id = u.user_id
           WHERE fp.status = 'published'";
@@ -235,6 +235,97 @@ while ($row = $posts_result->fetch_assoc()) {
             transform: translateY(-2px);
         }
 
+        /* Post Details Overlay (DBMS-style effect, loads existing post page in iframe) */
+        .post-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity var(--transition-normal);
+            backdrop-filter: blur(4px);
+        }
+
+        .post-modal-overlay.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+            overflow-y: auto;
+        }
+
+        .post-modal-content {
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: 0 20px 60px rgba(12, 27, 51, 0.3);
+            max-width: 900px;
+            width: 92%;
+            max-height: 92vh;
+            overflow: hidden;
+            animation: slideUp var(--transition-normal) ease;
+            position: relative;
+        }
+
+        .post-modal-iframe {
+            width: 100%;
+            height: 92vh;
+            border: 0;
+            display: block;
+            background: white;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .post-modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid var(--light-gray);
+            width: 40px;
+            height: 40px;
+            border-radius: 999px;
+            font-size: 1.4rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: color var(--transition-fast), box-shadow var(--transition-fast);
+            z-index: 1001;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .post-modal-close:hover {
+            color: var(--text-primary);
+            box-shadow: var(--shadow-md);
+        }
+
+        @media (max-width: 768px) {
+            .post-modal-content {
+                width: 96%;
+                max-height: 95vh;
+                border-radius: var(--radius-md);
+            }
+
+            .post-modal-iframe {
+                height: 95vh;
+            }
+        }
+
         .post-category {
             display: inline-block;
             background: rgba(107, 155, 209, 0.15);
@@ -338,11 +429,16 @@ while ($row = $posts_result->fetch_assoc()) {
         <div class="post-list">
             <?php if (count($posts) > 0): ?>
                 <?php foreach ($posts as $post): ?>
-                    <div class="post-card" onclick="location.href='forum_view.php?post_id=<?php echo $post['post_id']; ?>'">
+                    <div class="post-card" onclick="openPostModal(<?php echo $post['post_id']; ?>)">
                         <div class="post-category"><?php echo htmlspecialchars($post['category']); ?></div>
                         <h3 class="post-title"><?php echo htmlspecialchars($post['title']); ?></h3>
                         <div class="post-meta">
-                            <span class="post-stat"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 4px; vertical-align: middle;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/></svg><?php echo htmlspecialchars($post['username']); ?></span>
+                            <?php
+                                $post_author = !empty($post['is_anonymous'])
+                                    ? get_anonymous_display_name($post['user_id'])
+                                    : $post['username'];
+                            ?>
+                            <span class="post-stat"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 4px; vertical-align: middle;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/></svg><?php echo htmlspecialchars($post_author); ?></span>
                             <span class="post-stat"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 4px; vertical-align: middle;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><?php echo $post['view_count']; ?> views</span>
                             <span class="post-stat"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 4px; vertical-align: middle;"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><?php echo $post['reply_count']; ?> replies</span>
                             <span class="post-stat"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 4px; vertical-align: middle;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><?php echo date('M j, Y', strtotime($post['created_at'])); ?></span>
@@ -403,7 +499,31 @@ while ($row = $posts_result->fetch_assoc()) {
         </div>
     </div>
 
+    <!-- Post Details Overlay Modal -->
+    <div class="post-modal-overlay" id="postModalOverlay">
+        <div class="post-modal-content" id="postModalContent">
+            <button class="post-modal-close" type="button" onclick="closePostModal()">✕</button>
+            <iframe class="post-modal-iframe" id="postModalFrame" title="Post details"></iframe>
+        </div>
+    </div>
+
     <script>
+        function openPostModal(postId) {
+            const overlay = document.getElementById('postModalOverlay');
+            const frame = document.getElementById('postModalFrame');
+
+            frame.src = `forum_view.php?post_id=${postId}`;
+            overlay.classList.add('active');
+        }
+
+        function closePostModal() {
+            const overlay = document.getElementById('postModalOverlay');
+            const frame = document.getElementById('postModalFrame');
+            overlay.classList.remove('active');
+            // Clear src so audio/video/requests stop when closing
+            frame.src = '';
+        }
+
         function openNewPostModal() {
             document.getElementById('newPostModal').classList.add('show');
         }
@@ -416,6 +536,18 @@ while ($row = $posts_result->fetch_assoc()) {
         document.getElementById('newPostModal')?.addEventListener('click', function(e) {
             if (e.target === this) {
                 closeNewPostModal();
+            }
+        });
+
+        document.getElementById('postModalOverlay')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePostModal();
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closePostModal();
             }
         });
 

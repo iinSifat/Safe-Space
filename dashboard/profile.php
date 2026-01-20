@@ -51,6 +51,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
     $update_stmt->close();
 }
 
+// Handle forum post delete (soft delete)
+$forum_message = '';
+$forum_message_type = 'success';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_forum_post'])) {
+    $post_id = (int)($_POST['post_id'] ?? 0);
+    if ($post_id > 0) {
+        $delete_stmt = $conn->prepare("UPDATE forum_posts SET status = 'deleted' WHERE post_id = ? AND user_id = ?");
+        $delete_stmt->bind_param('ii', $post_id, $user_id);
+        $delete_stmt->execute();
+        $affected = $delete_stmt->affected_rows;
+        $delete_stmt->close();
+
+        if ($affected > 0) {
+            $forum_message = '✓ Post deleted successfully.';
+        } else {
+            $forum_message_type = 'error';
+            $forum_message = 'Unable to delete that post.';
+        }
+    } else {
+        $forum_message_type = 'error';
+        $forum_message = 'Invalid post.';
+    }
+}
+
+// Handle blog post delete (soft delete)
+$blog_message = '';
+$blog_message_type = 'success';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_blog_post'])) {
+    $blog_id = (int)($_POST['blog_id'] ?? 0);
+    if ($blog_id > 0) {
+        $delete_stmt = $conn->prepare("UPDATE blog_posts SET status = 'deleted' WHERE blog_id = ? AND user_id = ?");
+        $delete_stmt->bind_param('ii', $blog_id, $user_id);
+        $delete_stmt->execute();
+        $affected = $delete_stmt->affected_rows;
+        $delete_stmt->close();
+
+        if ($affected > 0) {
+            $blog_message = '✓ Blog post deleted successfully.';
+        } else {
+            $blog_message_type = 'error';
+            $blog_message = 'Unable to delete that blog post.';
+        }
+    } else {
+        $blog_message_type = 'error';
+        $blog_message = 'Invalid blog post.';
+    }
+}
+
+// Fetch user's forum posts
+$my_posts_stmt = $conn->prepare("
+    SELECT post_id, title, category, view_count, reply_count, created_at, status
+    FROM forum_posts
+    WHERE user_id = ? AND status <> 'deleted'
+    ORDER BY created_at DESC
+    LIMIT 50
+");
+$my_posts_stmt->bind_param('i', $user_id);
+$my_posts_stmt->execute();
+$my_posts_result = $my_posts_stmt->get_result();
+$my_posts = $my_posts_result->fetch_all(MYSQLI_ASSOC);
+$my_posts_stmt->close();
+
+// Fetch user's blog posts
+$my_blogs_stmt = $conn->prepare("
+    SELECT blog_id, title, category, view_count, comment_count, created_at, status
+    FROM blog_posts
+    WHERE user_id = ? AND status <> 'deleted'
+    ORDER BY created_at DESC
+    LIMIT 50
+");
+$my_blogs_stmt->bind_param('i', $user_id);
+$my_blogs_stmt->execute();
+$my_blogs_result = $my_blogs_stmt->get_result();
+$my_blogs = $my_blogs_result->fetch_all(MYSQLI_ASSOC);
+$my_blogs_stmt->close();
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -200,6 +276,90 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
         .success-alert.show {
             display: block;
         }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.12);
+            color: #b91c1c;
+            border-left: 4px solid var(--error);
+        }
+
+        .my-posts-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .my-post-item {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: flex-start;
+            padding: 14px;
+            border: 1px solid rgba(12, 27, 51, 0.08);
+            border-radius: var(--radius-md);
+            background: #fff;
+        }
+
+        .my-post-title {
+            font-weight: 800;
+            color: var(--text-primary);
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 6px;
+        }
+
+        .my-post-title:hover {
+            text-decoration: underline;
+        }
+
+        .my-post-meta {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .my-post-actions {
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .btn-sm {
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.12);
+            color: #b91c1c;
+        }
+
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.18);
+        }
+
+        @media (max-width: 768px) {
+            .my-post-item {
+                flex-direction: column;
+            }
+            .my-post-actions {
+                width: 100%;
+            }
+            .my-post-actions a,
+            .my-post-actions button {
+                flex: 1;
+            }
+        }
     </style>
 </head>
 <body>
@@ -222,6 +382,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
         <div class="success-alert <?php echo !empty($update_message) ? 'show' : ''; ?>">
             <?php echo htmlspecialchars($update_message); ?>
         </div>
+
+        <?php if (!empty($forum_message)): ?>
+            <div class="success-alert show <?php echo $forum_message_type === 'error' ? 'alert-error' : ''; ?>">
+                <?php echo htmlspecialchars($forum_message); ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!empty($blog_message)): ?>
+            <div class="success-alert show <?php echo $blog_message_type === 'error' ? 'alert-error' : ''; ?>">
+                <?php echo htmlspecialchars($blog_message); ?>
+            </div>
+        <?php endif; ?>
 
         <!-- Profile Header -->
         <div class="profile-header">
@@ -306,6 +478,88 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
             </div>
         </div>
         <?php endif; ?>
+
+        <!-- My Forum Posts -->
+        <div class="profile-card">
+            <div class="card-title"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M8 10h8"/><path d="M8 14h5"/></svg>My Forum Posts</div>
+
+            <?php if (count($my_posts) === 0): ?>
+                <p style="color: var(--text-secondary); margin: 0;">You haven’t posted in the forum yet.</p>
+                <div style="margin-top: 12px;">
+                    <a href="forum.php" class="btn btn-primary">Go to Forum</a>
+                </div>
+            <?php else: ?>
+                <div class="my-posts-list">
+                    <?php foreach ($my_posts as $post): ?>
+                        <div class="my-post-item">
+                            <div>
+                                <a class="my-post-title" href="forum_view.php?post_id=<?php echo (int)$post['post_id']; ?>">
+                                    <?php echo htmlspecialchars($post['title']); ?>
+                                </a>
+                                <div class="my-post-meta">
+                                    <span>🏷️ <?php echo htmlspecialchars($post['category']); ?></span>
+                                    <span>📅 <?php echo date('M j, Y', strtotime($post['created_at'])); ?></span>
+                                    <span>👁️ <?php echo (int)$post['view_count']; ?></span>
+                                    <span>💬 <?php echo (int)$post['reply_count']; ?></span>
+                                </div>
+                            </div>
+                            <div class="my-post-actions">
+                                <a class="btn btn-secondary btn-sm" href="forum_edit.php?post_id=<?php echo (int)$post['post_id']; ?>">Edit</a>
+                                <form method="POST" action="" onsubmit="return confirm('Delete this post? This will remove it from the forum.');" style="margin: 0;">
+                                    <input type="hidden" name="post_id" value="<?php echo (int)$post['post_id']; ?>">
+                                    <button type="submit" name="delete_forum_post" class="btn-sm btn-danger">Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+
+                <div style="margin-top: 14px; color: var(--text-secondary); font-size: 0.9rem;">
+                    Showing your latest 50 posts.
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <!-- My Blog Posts -->
+        <div class="profile-card">
+            <div class="card-title"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><path d="M7 8h10"/><path d="M7 12h10"/><path d="M7 16h6"/></svg>My Blog Posts</div>
+
+            <?php if (count($my_blogs) === 0): ?>
+                <p style="color: var(--text-secondary); margin: 0;">You haven’t written any blog posts yet.</p>
+                <div style="margin-top: 12px;">
+                    <a href="blogs.php" class="btn btn-primary">Go to Blog</a>
+                </div>
+            <?php else: ?>
+                <div class="my-posts-list">
+                    <?php foreach ($my_blogs as $blog): ?>
+                        <div class="my-post-item">
+                            <div>
+                                <a class="my-post-title" href="blog_view.php?blog_id=<?php echo (int)$blog['blog_id']; ?>">
+                                    <?php echo htmlspecialchars($blog['title']); ?>
+                                </a>
+                                <div class="my-post-meta">
+                                    <span>🏷️ <?php echo htmlspecialchars($blog['category']); ?></span>
+                                    <span>📅 <?php echo date('M j, Y', strtotime($blog['created_at'])); ?></span>
+                                    <span>👁️ <?php echo (int)$blog['view_count']; ?></span>
+                                    <span>💬 <?php echo (int)$blog['comment_count']; ?></span>
+                                </div>
+                            </div>
+                            <div class="my-post-actions">
+                                <a class="btn btn-secondary btn-sm" href="blog_edit.php?blog_id=<?php echo (int)$blog['blog_id']; ?>">Edit</a>
+                                <form method="POST" action="" onsubmit="return confirm('Delete this blog post? This will remove it from the blog page.');" style="margin: 0;">
+                                    <input type="hidden" name="blog_id" value="<?php echo (int)$blog['blog_id']; ?>">
+                                    <button type="submit" name="delete_blog_post" class="btn-sm btn-danger">Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+
+                <div style="margin-top: 14px; color: var(--text-secondary); font-size: 0.9rem;">
+                    Showing your latest 50 blog posts.
+                </div>
+            <?php endif; ?>
+        </div>
 
         <!-- Navigation -->
         <div style="display: flex; gap: 1rem; margin-top: 2rem; flex-wrap: wrap;">
