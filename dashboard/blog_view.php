@@ -20,9 +20,11 @@ if ($blog_id <= 0) {
 $post_sql = "
     SELECT bp.blog_id, bp.title, bp.category, bp.content, bp.created_at, bp.view_count, bp.comment_count,
            bp.user_id, bp.is_professional_post,
-           u.username, u.user_type
+           u.username, u.user_type,
+           p.specialization AS professional_specialization, p.verification_status AS professional_verification_status
     FROM blog_posts bp
     JOIN users u ON bp.user_id = u.user_id
+    LEFT JOIN professionals p ON p.user_id = u.user_id
     WHERE bp.blog_id = ? AND bp.status = 'published'
 ";
 $post_stmt = $conn->prepare($post_sql);
@@ -51,17 +53,35 @@ $comment_error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_comment'])) {
     $content = sanitize_input($_POST['comment_content'] ?? '');
     if ($content !== '') {
-        $c_stmt = $conn->prepare("INSERT INTO blog_comments (blog_id, user_id, content, status) VALUES (?, ?, ?, 'published')");
-        $c_stmt->bind_param('iis', $blog_id, $user_id, $content);
+        $is_professional_user = function_exists('is_professional') && is_professional();
+        $status = 'published';
+
+        if ($is_professional_user) {
+            $content = ensure_professional_disclaimer($content);
+            if (professional_content_has_prohibited_claims($content)) {
+                $status = 'flagged';
+            }
+            if (content_has_crisis_keywords($content)) {
+                add_notification((int)$user_id, 'warning', 'Crisis Support', 'If you or someone else is in immediate danger, call your local emergency number. If you are thinking about self-harm, please contact a local crisis hotline right now.');
+            }
+        }
+
+        $c_stmt = $conn->prepare("INSERT INTO blog_comments (blog_id, user_id, content, status) VALUES (?, ?, ?, ?)");
+        $c_stmt->bind_param('iiss', $blog_id, $user_id, $content, $status);
         $c_stmt->execute();
         $c_stmt->close();
 
-        $count_stmt = $conn->prepare('UPDATE blog_posts SET comment_count = comment_count + 1 WHERE blog_id = ?');
-        $count_stmt->bind_param('i', $blog_id);
-        $count_stmt->execute();
-        $count_stmt->close();
+        if ($status === 'published') {
+            $count_stmt = $conn->prepare('UPDATE blog_posts SET comment_count = comment_count + 1 WHERE blog_id = ?');
+            $count_stmt->bind_param('i', $blog_id);
+            $count_stmt->execute();
+            $count_stmt->close();
+            redirect('blog_view.php?blog_id=' . $blog_id);
+        }
 
-        redirect('blog_view.php?blog_id=' . $blog_id);
+        $comment_error = $is_professional_user && $status === 'flagged'
+            ? 'Your professional comment was held from public view due to restricted language. Please revise and try again.'
+            : $comment_error;
     } else {
         $comment_error = 'Comment cannot be empty.';
     }
@@ -106,9 +126,11 @@ $total_reactions = array_sum($reaction_counts);
 // Get comments
 $comments_sql = "
     SELECT bc.comment_id, bc.content, bc.created_at,
-           u.username, u.user_type
+           u.username, u.user_type,
+           p.specialization AS professional_specialization, p.verification_status AS professional_verification_status
     FROM blog_comments bc
     JOIN users u ON bc.user_id = u.user_id
+    LEFT JOIN professionals p ON p.user_id = u.user_id
     WHERE bc.blog_id = ? AND bc.status = 'published'
     ORDER BY bc.created_at ASC
 ";
@@ -143,7 +165,7 @@ $comments_stmt->close();
         .post-content,
         .comments-section,
         .new-comment {
-            background: white;
+            background: var(--bg-card, #F8F9F7);
             border-radius: var(--radius-lg);
             box-shadow: var(--shadow-sm);
         }
@@ -161,8 +183,8 @@ $comments_stmt->close();
         .category-chip {
             display: inline-flex;
             align-items: center;
-            background: rgba(107, 155, 209, 0.15);
-            color: var(--primary-color);
+            background: rgba(127, 175, 163, 0.15);
+            color: var(--accent-primary, #7FAFA3);
             padding: 4px 12px;
             border-radius: 999px;
             font-weight: 900;
@@ -195,8 +217,8 @@ $comments_stmt->close();
             align-items: center;
             justify-content: space-between;
             gap: 1rem;
-            background: white;
-            border: 1px solid var(--light-gray);
+            background: var(--bg-card, #F8F9F7);
+            border: 1px solid var(--border-soft, #D8E2DD);
             border-radius: var(--radius-md);
             padding: 0.75rem 1rem;
             box-shadow: var(--shadow-sm);
@@ -216,8 +238,8 @@ $comments_stmt->close();
             align-items: center;
             gap: 8px;
             padding: 8px 12px;
-            border: 1px solid var(--light-gray);
-            background: white;
+            border: 1px solid var(--border-soft, #D8E2DD);
+            background: var(--bg-card, #F8F9F7);
             border-radius: 999px;
             cursor: pointer;
         }
@@ -229,36 +251,58 @@ $comments_stmt->close();
         }
 
         .reaction-popup {
-            display: none;
             position: absolute;
-            bottom: 52px;
+            bottom: 100%;
             left: 0;
-            background: white;
-            border: 1px solid var(--light-gray);
+            transform: translateY(-2px) scale(0.98);
+            display: flex;
+            gap: 0.25rem;
+            padding: 0.5rem 0.6rem;
+            background: var(--bg-card, #F8F9F7);
             border-radius: 999px;
-            padding: 8px;
-            gap: 10px;
-            box-shadow: var(--shadow-md);
+            box-shadow: 0 12px 30px rgba(12, 27, 51, 0.15);
+            border: 1px solid var(--border-soft, #D8E2DD);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity var(--transition-fast), transform var(--transition-fast);
             z-index: 50;
         }
 
-        .reaction-popup.show { display: flex; }
+        .reaction-wrapper:hover .reaction-popup,
+        .reaction-wrapper:focus-within .reaction-popup {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(-2px) scale(1);
+        }
 
         .reaction-option {
-            background: none;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
             border: none;
+            background: transparent;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px;
             cursor: pointer;
-            padding: 0;
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+        }
+
+        .reaction-option:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: var(--shadow-sm);
         }
 
         .reaction-option img {
-            width: 28px;
-            height: 28px;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
 
         .action-chip {
-            border: 1px solid var(--light-gray);
-            background: white;
+            border: 1px solid var(--border-soft, #D8E2DD);
+            background: var(--bg-card, #F8F9F7);
             border-radius: 999px;
             padding: 8px 12px;
             cursor: pointer;
@@ -317,7 +361,10 @@ $comments_stmt->close();
                     Blog Post
                 </h2>
                 <div class="top-bar-right">
-                    <a href="notifications.php" style="text-decoration: none; color: var(--text-primary); font-weight: 600; padding: 8px 16px; background: var(--light-bg); border-radius: 8px;">🔔 Notifications</a>
+                    <a href="notifications.php" style="text-decoration: none; color: var(--text-primary); font-weight: 600; padding: 8px 16px; background: var(--light-bg); border-radius: 8px; display: inline-flex; align-items: center; gap: 8px;">
+                        <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                        Notifications
+                    </a>
                 </div>
             </div>
 
@@ -327,7 +374,7 @@ $comments_stmt->close();
                         <div class="badge-row">
                             <span class="category-chip"><?php echo htmlspecialchars($post['category']); ?></span>
                             <?php if (($post['user_type'] ?? '') === 'professional'): ?>
-                                <span class="pro-chip">Professional</span>
+                                <span class="pro-chip"><?php echo htmlspecialchars(professional_expert_content_label($post['professional_specialization'] ?? '', $post['professional_verification_status'] ?? '')); ?></span>
                             <?php endif; ?>
                         </div>
 
@@ -336,9 +383,9 @@ $comments_stmt->close();
                         </h1>
 
                         <div class="post-meta">
-                            <span>👤 <?php echo htmlspecialchars($post['username']); ?></span>
-                            <span>📅 <?php echo date('M j, Y \a\t g:i A', strtotime($post['created_at'])); ?></span>
-                            <span>👁️ <?php echo (int)$post['view_count']; ?> views</span>
+                            <span><svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><path d="M12 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8z"/></svg> <?php echo htmlspecialchars($post['username']); ?></span>
+                            <span><svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg> <?php echo date('M j, Y \a\t g:i A', strtotime($post['created_at'])); ?></span>
+                            <span><svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> <?php echo (int)$post['view_count']; ?> views</span>
                         </div>
                     </div>
 
@@ -363,14 +410,20 @@ $comments_stmt->close();
                                     <?php endforeach; ?>
                                 </div>
                             </div>
-                            <button class="action-chip" type="button" data-scroll-target="#commentFormSection">💬 Comment</button>
+                            <button class="action-chip" type="button" data-scroll-target="#commentFormSection">
+                                <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                                Comment
+                            </button>
                         </div>
                         <div class="post-actions-meta">
                             <span class="reaction-count-chip" id="reactionCountChip">
                                 <img src="<?php echo htmlspecialchars($reaction_assets['like']); ?>" alt="Reactions">
                                 <span><strong id="reactionTotal"><?php echo $total_reactions; ?></strong> reactions</span>
                             </span>
-                            <span style="color: var(--text-secondary);">💬 <?php echo (int)$post['comment_count']; ?> comments</span>
+                            <span style="color: var(--text-secondary);">
+                                <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                                <?php echo (int)$post['comment_count']; ?> comments
+                            </span>
                         </div>
                     </div>
 
@@ -387,7 +440,7 @@ $comments_stmt->close();
                                         <span class="comment-author">
                                             <?php echo htmlspecialchars($comment['username']); ?>
                                             <?php if (($comment['user_type'] ?? '') === 'professional'): ?>
-                                                <span style="margin-left: 8px; font-weight: 900; color: var(--secondary-color);">Professional</span>
+                                                <span class="pro-chip" style="margin-left: 8px;"><?php echo htmlspecialchars(professional_expert_content_label($comment['professional_specialization'] ?? '', $comment['professional_verification_status'] ?? '')); ?></span>
                                             <?php endif; ?>
                                         </span>
                                         <span><?php echo date('M j, Y \a\t g:i A', strtotime($comment['created_at'])); ?></span>
@@ -433,23 +486,6 @@ $comments_stmt->close();
                         const reactionAssets = <?php echo json_encode($reaction_assets); ?>;
                         const reactionLabels = <?php echo json_encode(array_combine($reaction_types, array_map('ucfirst', $reaction_types))); ?>;
 
-                        function togglePopup() {
-                            const isOpen = reactionPopup.classList.toggle('show');
-                            reactionTrigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-                        }
-
-                        reactionTrigger?.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            togglePopup();
-                        });
-
-                        document.addEventListener('click', (e) => {
-                            if (!reactionWrapper.contains(e.target)) {
-                                reactionPopup.classList.remove('show');
-                                reactionTrigger.setAttribute('aria-expanded', 'false');
-                            }
-                        });
-
                         async function sendReaction(reactionType) {
                             const payload = {
                                 blog_id: parseInt(reactionWrapper.dataset.blogId, 10),
@@ -480,8 +516,6 @@ $comments_stmt->close();
                             btn.addEventListener('click', async (e) => {
                                 e.preventDefault();
                                 const reactionType = btn.dataset.reaction;
-                                reactionPopup.classList.remove('show');
-                                reactionTrigger.setAttribute('aria-expanded', 'false');
 
                                 try {
                                     await sendReaction(reactionType);

@@ -13,6 +13,12 @@ if (!is_logged_in()) {
 
 check_session_timeout();
 
+// Professionals do not use self-help modules
+if (function_exists('is_professional') && is_professional()) {
+    set_flash_message('info', 'Mood Tracker is disabled for professional accounts.');
+    redirect('index.php');
+}
+
 $user_id = get_user_id();
 $db = Database::getInstance();
 $conn = $db->getConnection();
@@ -63,10 +69,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_mood'])) {
     if ($insert_stmt->execute()) {
         $mood_saved = true;
         // Award points for mood tracking
-        $points_stmt = $conn->prepare("UPDATE user_points SET total_points = total_points + 5 WHERE user_id = ?");
-        $points_stmt->bind_param("i", $user_id);
-        $points_stmt->execute();
-        $points_stmt->close();
+        if (!function_exists('is_professional') || !is_professional()) {
+            $points_stmt = $conn->prepare("UPDATE user_points SET total_points = total_points + 5 WHERE user_id = ?");
+            $points_stmt->bind_param("i", $user_id);
+            $points_stmt->execute();
+            $points_stmt->close();
+        }
     }
     $insert_stmt->close();
 }
@@ -224,7 +232,7 @@ $points_stmt->close();
         }
         
         .modal-content {
-            background: white;
+            background: var(--bg-card, #F8F9F7);
             padding: 2rem;
             border-radius: var(--radius-lg);
             max-width: 600px;

@@ -76,20 +76,20 @@ if ($stmt) {
     <style>
         body { background: var(--light-bg); padding: 24px; }
         .page { max-width: 1200px; margin: 0 auto; }
-        .card { background:#fff; border-radius: 20px; padding: 20px; box-shadow: var(--shadow-sm); }
+        .card { background: var(--bg-card, #F8F9F7); border-radius: 20px; padding: 20px; box-shadow: var(--shadow-sm); }
         .toolbar { display:flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 14px 0; }
         .row { display:flex; gap: 12px; flex-wrap: wrap; align-items:center; }
         table { width:100%; border-collapse: collapse; }
-        th, td { padding: 12px; border-bottom: 1px solid var(--light-gray); text-align:left; vertical-align: top; }
+        th, td { padding: 12px; border-bottom: 1px solid var(--border-soft, #D8E2DD); text-align:left; vertical-align: top; }
         th { color: var(--text-secondary); font-size: 0.9rem; }
-        .badge { display:inline-block; padding: 6px 10px; border-radius: 999px; font-weight: 800; font-size: 0.8rem; background: rgba(20,184,166,0.12); color: var(--primary-dark); }
+        .badge { display:inline-block; padding: 6px 10px; border-radius: 999px; font-weight: 800; font-size: 0.8rem; background: rgba(127, 175, 163, 0.18); color: var(--text-primary); }
         .badge.deleted { background: rgba(239,68,68,0.12); color: #b91c1c; }
         .badge.flagged { background: rgba(255,193,7,0.15); color: #8a6d00; }
         .badge.draft { background: rgba(123,93,255,0.12); color: #4c3bb8; }
         .actions { display:flex; gap: 8px; flex-wrap: wrap; }
-        .btn-link { text-decoration:none; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--light-gray); background: #fff; font-weight: 800; }
-        .btn-danger { background: #fff; border: 1px solid rgba(239,68,68,0.5); color: #b91c1c; }
-        input[type="text"], select { padding: 10px; border: 2px solid var(--light-gray); border-radius: 12px; }
+        .btn-link { text-decoration:none; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border-soft, #D8E2DD); background: var(--bg-card, #F8F9F7); font-weight: 800; }
+        .btn-danger { background: var(--bg-card, #F8F9F7); border: 1px solid rgba(239,68,68,0.5); color: #b91c1c; }
+        input[type="text"], select { padding: 10px; border: 2px solid var(--border-soft, #D8E2DD); border-radius: 12px; }
     </style>
 </head>
 <body>

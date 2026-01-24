@@ -11,6 +11,8 @@ $user_id = get_user_id();
 $db = Database::getInstance();
 $conn = $db->getConnection();
 
+$is_professional_user = function_exists('is_professional') && is_professional();
+
 $blog_id = (int)($_GET['blog_id'] ?? 0);
 if ($blog_id <= 0) {
     redirect('profile.php');
@@ -31,7 +33,10 @@ $blog_categories = [
     'Professional Insights',
 ];
 
-$post_stmt = $conn->prepare("SELECT blog_id, title, category, content, status FROM blog_posts WHERE blog_id = ? AND user_id = ? AND status = 'published' LIMIT 1");
+$post_sql = $is_professional_user
+    ? "SELECT blog_id, title, category, content, status FROM blog_posts WHERE blog_id = ? AND user_id = ? LIMIT 1"
+    : "SELECT blog_id, title, category, content, status FROM blog_posts WHERE blog_id = ? AND user_id = ? AND status = 'published' LIMIT 1";
+$post_stmt = $conn->prepare($post_sql);
 $post_stmt->bind_param('ii', $blog_id, $user_id);
 $post_stmt->execute();
 $post = $post_stmt->get_result()->fetch_assoc();
@@ -56,15 +61,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_blog_post'])) 
         $message_type = 'error';
         $message = 'Invalid category.';
     } else {
-        $update_stmt = $conn->prepare('UPDATE blog_posts SET title = ?, category = ?, content = ? WHERE blog_id = ? AND user_id = ?');
-        $update_stmt->bind_param('sssii', $title, $category, $content, $blog_id, $user_id);
-        $update_stmt->execute();
-        $update_stmt->close();
+        if ($is_professional_user) {
+            $content = ensure_professional_disclaimer($content);
+            if (professional_content_has_prohibited_claims($content)) {
+                $message_type = 'error';
+                $message = 'Your professional post contains restricted language (e.g., diagnosis/prescribing). Please revise and try again.';
+            } else {
+                if (content_has_crisis_keywords($content)) {
+                    add_notification((int)$user_id, 'warning', 'Crisis Support', 'If you or someone else is in immediate danger, call your local emergency number. If you are thinking about self-harm, please contact a local crisis hotline right now.');
+                }
 
-        $message = '✓ Blog post updated successfully!';
-        $post['title'] = $title;
-        $post['category'] = $category;
-        $post['content'] = $content;
+                $new_status = 'draft';
+                $update_stmt = $conn->prepare('UPDATE blog_posts SET title = ?, category = ?, content = ?, status = ?, is_professional_post = 1 WHERE blog_id = ? AND user_id = ?');
+                $update_stmt->bind_param('ssssii', $title, $category, $content, $new_status, $blog_id, $user_id);
+                $update_stmt->execute();
+                $update_stmt->close();
+
+                $message = '✓ Changes saved. Your professional post is now in draft for review.';
+                $post['status'] = $new_status;
+                $post['title'] = $title;
+                $post['category'] = $category;
+                $post['content'] = $content;
+            }
+        } else {
+            $update_stmt = $conn->prepare('UPDATE blog_posts SET title = ?, category = ?, content = ? WHERE blog_id = ? AND user_id = ?');
+            $update_stmt->bind_param('sssii', $title, $category, $content, $blog_id, $user_id);
+            $update_stmt->execute();
+            $update_stmt->close();
+
+            $message = '✓ Blog post updated successfully!';
+            $post['title'] = $title;
+            $post['category'] = $category;
+            $post['content'] = $content;
+        }
     }
 }
 
@@ -79,13 +108,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_blog_post'])) 
     <link rel="stylesheet" href="includes/dashboard-layout.css">
     <style>
         .edit-container { max-width: 900px; margin: 0 auto; padding: 2rem 1rem; }
-        .card { background: white; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 2rem; }
+        .card { background: var(--bg-card, #F8F9F7); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 2rem; }
         .card-title { font-size: 1.3rem; font-weight: 900; color: var(--text-primary); margin-bottom: 1rem; }
         .alert { padding: 1rem; border-radius: var(--radius-sm); margin-bottom: 1rem; border-left: 4px solid var(--success); background: rgba(111, 207, 151, 0.15); color: #2d7a4d; font-weight: 800; }
         .alert.error { border-left-color: var(--error); background: rgba(239, 68, 68, 0.12); color: #b91c1c; }
         .form-group { margin-bottom: 1rem; }
         .form-group label { display: block; font-weight: 900; margin-bottom: 0.5rem; color: var(--text-primary); }
-        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 2px solid var(--light-gray); border-radius: var(--radius-sm); font-family: inherit; font-size: 1rem; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 2px solid var(--border-soft, #D8E2DD); border-radius: var(--radius-sm); font-family: inherit; font-size: 1rem; }
         .form-group textarea { min-height: 180px; resize: vertical; }
     </style>
 </head>
@@ -131,7 +160,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_blog_post'])) 
                             <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
                                 <button type="submit" name="update_blog_post" class="btn btn-primary">Save Changes</button>
                                 <a href="profile.php" class="btn btn-secondary">Back to Profile</a>
-                                <a href="blog_view.php?blog_id=<?php echo (int)$post['blog_id']; ?>" class="btn btn-secondary">View Post</a>
+                                <?php if (($post['status'] ?? '') === 'published'): ?>
+                                    <a href="blog_view.php?blog_id=<?php echo (int)$post['blog_id']; ?>" class="btn btn-secondary">View Post</a>
+                                <?php endif; ?>
                             </div>
                         </form>
                     </div>

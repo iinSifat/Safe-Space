@@ -9,15 +9,49 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Small helper for environment overrides
+if (!function_exists('ss_env')) {
+    function ss_env($key, $default = null) {
+        $val = getenv($key);
+        return ($val === false) ? $default : $val;
+    }
+}
+
+// Optional local config override (DO NOT COMMIT secrets)
+// Create: config/config.local.php returning an array with DB_HOST/DB_USER/DB_PASS/DB_NAME
+$__ss_local_config_file = __DIR__ . '/config.local.php';
+$__ss_local_config = [];
+if (is_file($__ss_local_config_file)) {
+    $maybe = require $__ss_local_config_file;
+    if (is_array($maybe)) {
+        $__ss_local_config = $maybe;
+    }
+}
+
+// App Debug (default on for local dev)
+if (!defined('APP_DEBUG')) {
+    $debugRaw = ss_env('SAFESPACE_DEBUG', '1');
+    define('APP_DEBUG', in_array(strtolower((string)$debugRaw), ['1', 'true', 'yes', 'on'], true));
+}
+
 // Database Configuration
-define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
-define('DB_PASS', '#Sifat10919');
-define('DB_NAME', 'safe_space_db');
+// Priority: config/config.local.php -> env vars -> defaults
+if (!defined('DB_HOST')) {
+    define('DB_HOST', $__ss_local_config['DB_HOST'] ?? ss_env('SAFESPACE_DB_HOST', 'localhost'));
+}
+if (!defined('DB_USER')) {
+    define('DB_USER', $__ss_local_config['DB_USER'] ?? ss_env('SAFESPACE_DB_USER', 'root'));
+}
+if (!defined('DB_PASS')) {
+    define('DB_PASS', $__ss_local_config['DB_PASS'] ?? ss_env('SAFESPACE_DB_PASS', '#Sifat10919'));
+}
+if (!defined('DB_NAME')) {
+    define('DB_NAME', $__ss_local_config['DB_NAME'] ?? ss_env('SAFESPACE_DB_NAME', 'safe_space_db'));
+}
 
 // Site Configuration
 define('SITE_NAME', 'Safe Space');
-define('SITE_URL', 'http://localhost/SafeSpace/');
+define('SITE_URL', 'http://localhost/SafeSpaceupdatedbyshuvo/');
 define('SITE_EMAIL', 'support@safespace.com');
 
 // Security Configuration
@@ -33,8 +67,8 @@ define('MAX_FILE_SIZE', 5242880); // 5MB in bytes
 date_default_timezone_set('UTC');
 
 // Error Reporting (Set to 0 in production)
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+error_reporting(APP_DEBUG ? E_ALL : 0);
+ini_set('display_errors', APP_DEBUG ? '1' : '0');
 
 // Database Connection Class
 class Database {
@@ -43,15 +77,22 @@ class Database {
     
     private function __construct() {
         try {
-            $this->conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+            // Prevent raw mysqli warnings leaking to the page; we'll handle errors ourselves.
+            mysqli_report(MYSQLI_REPORT_OFF);
+            $this->conn = @new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
             
-            if ($this->conn->connect_error) {
-                throw new Exception("Connection failed: " . $this->conn->connect_error);
+            if ($this->conn->connect_errno) {
+                // Keep details only for debug.
+                $detail = $this->conn->connect_error;
+                throw new Exception(APP_DEBUG ? ("Connection failed: " . $detail) : "Connection failed.");
             }
             
             $this->conn->set_charset("utf8mb4");
         } catch (Exception $e) {
-            die("Database Connection Error: " . $e->getMessage());
+            if (APP_DEBUG) {
+                die("Database Connection Error: " . $e->getMessage());
+            }
+            die("Database Connection Error. Please check database credentials.");
         }
     }
     
@@ -223,6 +264,143 @@ function require_admin() {
 function require_role($role) {
     if (!is_logged_in()) { redirect('../auth/login.php'); }
     if (get_user_type() !== $role) { redirect('../dashboard/index.php'); }
+}
+
+// Professional role helpers
+function is_professional() {
+    return get_user_type() === 'professional';
+}
+
+function require_not_professional($redirectUrl = '../dashboard/index.php', $flashMessage = 'This feature is not available for professional accounts.') {
+    if (is_logged_in() && is_professional()) {
+        set_flash_message('info', $flashMessage);
+        redirect($redirectUrl);
+    }
+}
+
+function get_professional_profile($user_id) {
+    $user_id = (int)$user_id;
+    if ($user_id <= 0) { return null; }
+
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+    $stmt = $conn->prepare("SELECT full_name, specialization, license_number, license_state, license_country, degree, years_of_experience, credentials, availability_schedule, is_accepting_patients, verification_status FROM professionals WHERE user_id = ? LIMIT 1");
+    if (!$stmt) { return null; }
+    $stmt->bind_param('i', $user_id);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    return $row ?: null;
+}
+
+function professional_authority_label($specialization = '', $verification_status = '') {
+    $specialization = trim((string)$specialization);
+    $verification_status = trim((string)$verification_status);
+
+    // Product rule: professional interactions carry authority; prefer 'Verified' when available.
+    $base = ($verification_status === 'verified') ? 'Verified Mental Health Professional' : 'Mental Health Professional';
+    if ($specialization !== '') {
+        return $base . ' • ' . $specialization;
+    }
+    return $base;
+}
+
+function professional_expert_content_label($specialization = '', $verification_status = '') {
+    // Blog-specific labeling; keeps forum labels separate.
+    return 'Expert Content • ' . professional_authority_label($specialization, $verification_status);
+}
+
+function ensure_professional_disclaimer($content) {
+    $content = (string)$content;
+    $prefix = "General Guidance (Not Medical Advice):";
+
+    // Idempotent: do not double-prefix.
+    if (stripos($content, $prefix) !== false) {
+        return $content;
+    }
+
+    $disclaimer = $prefix . " This is informational and not a medical diagnosis.\n" .
+        "If you are in immediate danger or feel you might harm yourself, call your local emergency number or a crisis hotline.\n\n";
+
+    return $disclaimer . $content;
+}
+
+function professional_content_has_prohibited_claims($content) {
+    $content = (string)$content;
+
+    // Basic enforcement for diagnosis/prescription claims (heuristic, not perfect).
+    $patterns = [
+        '/\bdiagnos(e|is|ing|ed)\b/i',
+        '/\bprescrib(e|es|ing|ed)\b/i',
+        '/\bI\s+prescribe\b/i',
+        '/\bRx\b/i',
+        '/\bmg\b/i',
+        '/\b(increase|decrease)\s+your\s+dose\b/i'
+    ];
+
+    foreach ($patterns as $p) {
+        if (preg_match($p, $content)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function content_has_crisis_keywords($content) {
+    $content = mb_strtolower((string)$content);
+    $needles = [
+        'suicide',
+        'kill myself',
+        'end my life',
+        'self harm',
+        'self-harm',
+        'hurt myself',
+        'overdose'
+    ];
+    foreach ($needles as $n) {
+        if (mb_strpos($content, $n) !== false) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function professional_client_alias($client_user_id) {
+    $client_user_id = (int)$client_user_id;
+    if ($client_user_id <= 0) {
+        return 'Client';
+    }
+    return 'Client-' . substr(md5('ss-client:' . $client_user_id), 0, 6);
+}
+
+function ensure_professional_sessions_table() {
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+
+    // Minimal scheduling/session table to support professional workspace flows.
+    $sql = "CREATE TABLE IF NOT EXISTS professional_sessions (
+        session_id INT AUTO_INCREMENT PRIMARY KEY,
+        professional_user_id INT NOT NULL,
+        client_user_id INT NOT NULL,
+        client_alias VARCHAR(32) NOT NULL,
+        primary_concern VARCHAR(120) NULL,
+        risk_level ENUM('low','medium','high','critical') DEFAULT 'low',
+        preferred_session_type ENUM('call','video') DEFAULT 'video',
+        preferred_duration_minutes INT DEFAULT 50,
+        is_emergency BOOLEAN DEFAULT FALSE,
+        scheduled_at DATETIME NULL,
+        status ENUM('requested','accepted','declined','completed','cancelled','no_show') DEFAULT 'requested',
+        private_notes TEXT NULL,
+        risk_assessment ENUM('low','medium','high','critical') DEFAULT 'low',
+        follow_up_required BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_professional_status (professional_user_id, status),
+        INDEX idx_professional_schedule (professional_user_id, scheduled_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+
+    // Best-effort; if the DB user lacks privileges, features will degrade gracefully.
+    @$conn->query($sql);
 }
 
 function user_has_volunteer_permission($user_id) {

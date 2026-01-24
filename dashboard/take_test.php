@@ -12,6 +12,12 @@ if (!isset($_SESSION['user_id'])) {
     redirect('../auth/login.php');
 }
 
+// Professionals do not use self-help modules
+if (function_exists('is_professional') && is_professional()) {
+    set_flash_message('info', 'Mental health tests are disabled for professional accounts.');
+    redirect('index.php');
+}
+
 $user_id = $_SESSION['user_id'];
 $test_id = isset($_GET['test_id']) ? (int)$_GET['test_id'] : 0;
 
@@ -222,11 +228,11 @@ $page_title = htmlspecialchars($test['test_name']);
             display: flex;
             align-items: center;
             padding: 12px 16px;
-            border: 2px solid rgba(20, 184, 166, 0.15);
+            border: 2px solid var(--border-soft, #D8E2DD);
             border-radius: 10px;
             cursor: pointer;
             transition: all 0.2s ease;
-            background: white;
+            background: var(--bg-card, #F8F9F7);
         }
         
         .answer-option:hover {
@@ -328,7 +334,8 @@ $page_title = htmlspecialchars($test['test_name']);
                 <h2 style="margin: 0; font-size: 18px; color: var(--text-primary);">Taking Test</h2>
                 <div class="top-bar-right">
                     <a href="notifications.php" style="text-decoration: none; color: var(--text-primary); font-weight: 600; padding: 8px 16px; background: var(--light-bg); border-radius: 8px;">
-                        🔔 Notifications
+                        <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                        Notifications
                     </a>
                 </div>
             </div>

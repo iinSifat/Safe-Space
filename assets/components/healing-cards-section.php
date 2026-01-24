@@ -413,7 +413,7 @@
 .healing-card {
     flex: 0 0 auto;
     width: 320px;
-    background: white;
+    background: var(--bg-card, #F8F9F7);
     border-radius: 20px;
     padding: 2rem;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
@@ -544,7 +544,7 @@
 }
 
 .healing-card-static {
-    background: white;
+    background: var(--bg-card, #F8F9F7);
     border-radius: 20px;
     padding: 2rem;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);

@@ -1,4 +1,3 @@
-
 DROP DATABASE IF EXISTS safe_space_db;
 CREATE DATABASE safe_space_db;
 USE safe_space_db;
@@ -15,7 +14,7 @@ CREATE TABLE admins (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_login TIMESTAMP NULL,
     is_active BOOLEAN DEFAULT TRUE,
-    INDEX idx_username (username),
+    INDEX idx_username (username), 
     INDEX idx_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -49,6 +48,20 @@ CREATE TABLE users (
     INDEX idx_is_active (is_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Updated by Shuvo - START
+-- 2b. USER HEALTH METRICS (Optional informational data; BMI is calculated, not stored)
+CREATE TABLE user_health_metrics (
+    user_id INT PRIMARY KEY,
+    age_years INT NULL,
+    height_cm DECIMAL(5,2) NULL,
+    weight_kg DECIMAL(6,2) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_updated_at (updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Updated by Shuvo - END
+
 -- 3. PROFESSIONALS TABLE (Mental Health Professionals)
 CREATE TABLE professionals (
     professional_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -76,6 +89,30 @@ CREATE TABLE professionals (
     INDEX idx_verification_status (verification_status),
     INDEX idx_specialization (specialization),
     INDEX idx_is_accepting (is_accepting_patients)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 3b. PROFESSIONAL SESSIONS TABLE (Scheduling & Session Management)
+CREATE TABLE professional_sessions (
+    session_id INT AUTO_INCREMENT PRIMARY KEY,
+    professional_user_id INT NOT NULL,
+    client_user_id INT NOT NULL,
+    client_alias VARCHAR(32) NOT NULL,
+    primary_concern VARCHAR(120) NULL,
+    risk_level ENUM('low','medium','high','critical') DEFAULT 'low',
+    preferred_session_type ENUM('call','video') DEFAULT 'video',
+    preferred_duration_minutes INT DEFAULT 50,
+    is_emergency BOOLEAN DEFAULT FALSE,
+    scheduled_at DATETIME NULL,
+    status ENUM('requested','accepted','declined','completed','cancelled','no_show') DEFAULT 'requested',
+    private_notes TEXT NULL,
+    risk_assessment ENUM('low','medium','high','critical') DEFAULT 'low',
+    follow_up_required BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (professional_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (client_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_professional_status (professional_user_id, status),
+    INDEX idx_professional_schedule (professional_user_id, scheduled_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 4. VOLUNTEERS TABLE (Peer Support Volunteers)
@@ -265,6 +302,24 @@ CREATE TABLE forum_replies (
     INDEX idx_is_helpful (is_helpful_marked)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Updated by Shuvo - START
+-- 11A. NESTED REPLIES UNDER FORUM COMMENTS (replies to forum_replies)
+CREATE TABLE forum_comment_replies (
+    comment_reply_id INT AUTO_INCREMENT PRIMARY KEY,
+    parent_reply_id INT NOT NULL,
+    user_id INT NOT NULL,
+    content LONGTEXT NOT NULL,
+    is_encrypted BOOLEAN DEFAULT TRUE,
+    status ENUM('published', 'deleted', 'flagged') DEFAULT 'published',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (parent_reply_id) REFERENCES forum_replies(reply_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_parent_created (parent_reply_id, created_at),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Updated by Shuvo - END
+
 -- 12. FORUM POST REACTIONS TABLE (LinkedIn-style reactions)
 CREATE TABLE forum_post_reactions (
     reaction_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -278,6 +333,223 @@ CREATE TABLE forum_post_reactions (
     FOREIGN KEY (post_id) REFERENCES forum_posts(post_id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Updated by Shuvo - START
+-- 12A. COMMUNITY SYSTEM (Admin-reviewed, safety-focused, forum-like spaces)
+
+-- Community creation requests (pending -> approved/declined by admin)
+CREATE TABLE community_requests (
+    request_id INT AUTO_INCREMENT PRIMARY KEY,
+    requested_by_user_id INT NOT NULL,
+    community_name VARCHAR(120) NOT NULL,
+    focus_tag ENUM('support','awareness','recovery','learning','discussion') NOT NULL DEFAULT 'support',
+    sensitivity_level ENUM('low','medium','high') NOT NULL DEFAULT 'medium',
+    allow_anonymous_posts BOOLEAN DEFAULT FALSE,
+    purpose_who_for TEXT NOT NULL,
+    purpose_support_expected TEXT NOT NULL,
+    why_needed TEXT NOT NULL,
+    how_help TEXT NOT NULL,
+    engagement_plan TEXT NOT NULL,
+    safety_considerations TEXT NOT NULL,
+    status ENUM('pending','approved','declined') DEFAULT 'pending',
+    admin_notes TEXT NULL,
+    reviewed_by INT NULL COMMENT 'Admin ID who reviewed',
+    reviewed_at TIMESTAMP NULL,
+    community_id INT NULL COMMENT 'Set when approved and community is created',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (requested_by_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (reviewed_by) REFERENCES admins(admin_id) ON DELETE SET NULL,
+    INDEX idx_status_created (status, created_at),
+    INDEX idx_requested_by (requested_by_user_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Approved communities (only these appear to users)
+CREATE TABLE communities (
+    community_id INT AUTO_INCREMENT PRIMARY KEY,
+    creator_user_id INT NOT NULL,
+    name VARCHAR(120) NOT NULL,
+    focus_tag ENUM('support','awareness','recovery','learning','discussion') NOT NULL DEFAULT 'support',
+    sensitivity_level ENUM('low','medium','high') NOT NULL DEFAULT 'medium',
+    allow_anonymous_posts BOOLEAN DEFAULT FALSE,
+    purpose_who_for TEXT NOT NULL,
+    purpose_support_expected TEXT NOT NULL,
+    safety_considerations TEXT NULL,
+    status ENUM('approved','archived') DEFAULT 'approved',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (creator_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    UNIQUE KEY uq_community_name (name),
+    INDEX idx_status_created (status, created_at),
+    INDEX idx_creator (creator_user_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Memberships (optional join reason; role tags visible only inside a community)
+CREATE TABLE community_members (
+    community_id INT NOT NULL,
+    user_id INT NOT NULL,
+    role ENUM('member','creator','volunteer') DEFAULT 'member',
+    join_reason VARCHAR(160) NULL,
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (community_id, user_id),
+    FOREIGN KEY (community_id) REFERENCES communities(community_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_role (community_id, role),
+    INDEX idx_joined (community_id, joined_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Community join requests (member access is granted only after approval)
+ 
+-- Community posts
+CREATE TABLE community_posts (
+    post_id INT AUTO_INCREMENT PRIMARY KEY,
+    community_id INT NOT NULL,
+    user_id INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    content LONGTEXT NOT NULL,
+    is_anonymous BOOLEAN DEFAULT FALSE,
+    status ENUM('published','deleted','flagged') DEFAULT 'published',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    view_count INT DEFAULT 0,
+    FOREIGN KEY (community_id) REFERENCES communities(community_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_comm_created (community_id, created_at),
+    INDEX idx_user_created (user_id, created_at),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Comments on community posts (supports highlighting)
+CREATE TABLE community_comments (
+    comment_id INT AUTO_INCREMENT PRIMARY KEY,
+    post_id INT NOT NULL,
+    community_id INT NOT NULL,
+    user_id INT NOT NULL,
+    content LONGTEXT NOT NULL,
+    is_anonymous BOOLEAN DEFAULT FALSE,
+    is_highlighted BOOLEAN DEFAULT FALSE,
+    status ENUM('published','deleted','flagged') DEFAULT 'published',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (post_id) REFERENCES community_posts(post_id) ON DELETE CASCADE,
+    FOREIGN KEY (community_id) REFERENCES communities(community_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_post_created (post_id, created_at),
+    INDEX idx_comm_highlight (community_id, is_highlighted)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Nested replies under community comments
+CREATE TABLE community_comment_replies (
+    reply_id INT AUTO_INCREMENT PRIMARY KEY,
+    comment_id INT NOT NULL,
+    community_id INT NOT NULL,
+    user_id INT NOT NULL,
+    content LONGTEXT NOT NULL,
+    is_anonymous BOOLEAN DEFAULT FALSE,
+    status ENUM('published','deleted','flagged') DEFAULT 'published',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (comment_id) REFERENCES community_comments(comment_id) ON DELETE CASCADE,
+    FOREIGN KEY (community_id) REFERENCES communities(community_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_comment_created (comment_id, created_at),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Supportive reactions (posts + comments)
+CREATE TABLE community_reactions (
+    reaction_id INT AUTO_INCREMENT PRIMARY KEY,
+    community_id INT NOT NULL,
+    user_id INT NOT NULL,
+    target_type ENUM('post','comment') NOT NULL,
+    target_id INT NOT NULL,
+    reaction_type ENUM('like', 'celebrate', 'support', 'love', 'insightful', 'curious') NOT NULL DEFAULT 'support',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_comm_user_target (community_id, user_id, target_type, target_id),
+    FOREIGN KEY (community_id) REFERENCES communities(community_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_target_reaction (community_id, target_type, target_id, reaction_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Weekly discussion prompts (creator or approved community volunteers)
+CREATE TABLE community_weekly_prompts (
+    prompt_id INT AUTO_INCREMENT PRIMARY KEY,
+    community_id INT NOT NULL,
+    prompt_text VARCHAR(500) NOT NULL,
+    week_start_date DATE NOT NULL,
+    created_by_user_id INT NOT NULL,
+    status ENUM('active','archived') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (community_id) REFERENCES communities(community_id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    UNIQUE KEY uq_comm_week (community_id, week_start_date),
+    INDEX idx_comm_status_created (community_id, status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Reports & escalation (admin oversight + creator moderation insights)
+CREATE TABLE community_reports (
+    report_id INT AUTO_INCREMENT PRIMARY KEY,
+    community_id INT NOT NULL,
+    reporter_user_id INT NOT NULL,
+    target_type ENUM('post','comment','reply') NOT NULL,
+    target_id INT NOT NULL,
+    reason ENUM('harassment','self_harm','hate','spam','misinformation','other') NOT NULL DEFAULT 'other',
+    details TEXT NULL,
+    status ENUM('pending','reviewed','escalated','closed') DEFAULT 'pending',
+    reviewed_by INT NULL COMMENT 'Admin ID',
+    creator_reviewed_by_user_id INT NULL COMMENT 'Community creator/volunteer user id',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (community_id) REFERENCES communities(community_id) ON DELETE CASCADE,
+    FOREIGN KEY (reporter_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (reviewed_by) REFERENCES admins(admin_id) ON DELETE SET NULL,
+    FOREIGN KEY (creator_reviewed_by_user_id) REFERENCES users(user_id) ON DELETE SET NULL,
+    INDEX idx_comm_status (community_id, status, created_at),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Creator requests for community volunteer support (admin reviewed)
+CREATE TABLE community_volunteer_needs (
+    need_id INT AUTO_INCREMENT PRIMARY KEY,
+    community_id INT NOT NULL,
+    requested_by_user_id INT NOT NULL,
+    justification TEXT NOT NULL,
+    status ENUM('pending','approved','declined') DEFAULT 'pending',
+    admin_notes TEXT NULL,
+    reviewed_by INT NULL COMMENT 'Admin ID',
+    reviewed_at TIMESTAMP NULL,
+    approved_at TIMESTAMP NULL,
+    declined_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (community_id) REFERENCES communities(community_id) ON DELETE CASCADE,
+    FOREIGN KEY (requested_by_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (reviewed_by) REFERENCES admins(admin_id) ON DELETE SET NULL,
+    INDEX idx_comm_status_created (community_id, status, created_at),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Volunteers apply to a specific community; creator approves/declines
+CREATE TABLE community_volunteer_applications (
+    application_id INT AUTO_INCREMENT PRIMARY KEY,
+    community_id INT NOT NULL,
+    volunteer_user_id INT NOT NULL,
+    message TEXT NULL,
+    status ENUM('pending','approved','declined') DEFAULT 'pending',
+    decided_by_user_id INT NULL COMMENT 'Creator user id',
+    decided_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_comm_volunteer (community_id, volunteer_user_id),
+    FOREIGN KEY (community_id) REFERENCES communities(community_id) ON DELETE CASCADE,
+    FOREIGN KEY (volunteer_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (decided_by_user_id) REFERENCES users(user_id) ON DELETE SET NULL,
+    INDEX idx_comm_status (community_id, status, created_at),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Updated by Shuvo - END
 
 -- Insert default admin account
 -- Password: Admin@123 (hashed with bcrypt)
@@ -504,6 +776,323 @@ INSERT INTO professionals (user_id, full_name, specialization, license_number, l
 SELECT u.user_id, 'Dr. Faye Morgan', 'Cognitive Behavioral Therapy (CBT)', 'LIC-FA-10293', 'CA', 'US', 'PhD Clinical Psychology', 9, 'verified'
 FROM users u
 WHERE u.username = 'dr_faye'
+LIMIT 1;
+
+-- Dummy communities + posts (for UI preview)
+-- NOTE: These are approved communities so they show up immediately.
+
+INSERT IGNORE INTO communities (
+    creator_user_id, name, focus_tag, sensitivity_level, allow_anonymous_posts,
+    purpose_who_for, purpose_support_expected, safety_considerations, status, created_at
+)
+SELECT u.user_id,
+       'Demo Community: Depression Support',
+       'support','medium', TRUE,
+       'People seeking peer support for low mood, burnout, and loss of interest.',
+       'Gentle check-ins, coping ideas, and supportive listening. No medical advice.',
+       'Be kind and non-judgmental. If you feel unsafe, use the Emergency page or local services.',
+       'approved', (NOW() - INTERVAL 20 DAY)
+FROM users u WHERE u.username = 'sam_volunteer'
+UNION ALL
+SELECT u.user_id,
+       'Anxiety Reset Circle',
+       'support','medium', TRUE,
+       'People dealing with worry, panic spikes, and racing thoughts.',
+       'Share coping tools, grounding ideas, and small wins from week to week.',
+       'No harassment, no medical directives. If you feel in danger, contact local services.',
+       'approved', (NOW() - INTERVAL 19 DAY)
+FROM users u WHERE u.username = 'sam_volunteer'
+UNION ALL
+SELECT u.user_id,
+       'OCD & Intrusive Thoughts',
+       'awareness','high', TRUE,
+       'People navigating intrusive thoughts, compulsions, and reassurance loops.',
+       'Support, education, and peer strategies (not a substitute for therapy).',
+       'Avoid sharing triggering details. Focus on support and coping steps.',
+       'approved', (NOW() - INTERVAL 18 DAY)
+FROM users u WHERE u.username = 'dr_faye'
+UNION ALL
+SELECT u.user_id,
+       'Sleep & Reset Routine',
+       'learning','low', TRUE,
+       'Anyone trying to improve sleep and nighttime routines.',
+       'Practical sleep hygiene, gentle accountability, and realistic routines.',
+       'Be respectful. Keep advice practical and non-judgmental.',
+       'approved', (NOW() - INTERVAL 17 DAY)
+FROM users u WHERE u.username = 'noah_patient'
+UNION ALL
+SELECT u.user_id,
+       'Burnout Recovery Lab',
+       'recovery','medium', TRUE,
+       'People experiencing burnout from work/school and constant pressure.',
+       'Boundaries, recovery habits, pacing strategies, and supportive check-ins.',
+       'No blame. Encourage rest and professional support when needed.',
+       'approved', (NOW() - INTERVAL 16 DAY)
+FROM users u WHERE u.username = 'liam_patient'
+UNION ALL
+SELECT u.user_id,
+       'Grief & Loss Support',
+       'support','high', TRUE,
+       'People coping with grief, loss, and big life transitions.',
+       'Compassionate listening, remembrance, and gentle support.',
+       'Keep language sensitive. No graphic details. Offer support, not judgment.',
+       'approved', (NOW() - INTERVAL 15 DAY)
+FROM users u WHERE u.username = 'mina_supporter'
+UNION ALL
+SELECT u.user_id,
+       'Social Anxiety Practice',
+       'discussion','medium', TRUE,
+       'People who want to practice social confidence in small, safe steps.',
+       'Weekly challenges, gentle exposure ideas, and encouragement.',
+       'No shaming. Celebrate small progress. Respect boundaries.',
+       'approved', (NOW() - INTERVAL 14 DAY)
+FROM users u WHERE u.username = 'ava_patient'
+UNION ALL
+SELECT u.user_id,
+       'Trauma-Informed Grounding',
+       'learning','high', FALSE,
+       'People learning grounding skills and nervous-system regulation.',
+       'Trauma-informed coping tools and safety planning resources.',
+       'Avoid explicit trauma details. Focus on safety and supportive coping.',
+       'approved', (NOW() - INTERVAL 13 DAY)
+FROM users u WHERE u.username = 'dr_faye'
+UNION ALL
+SELECT u.user_id,
+       'Mindful Habits & Routines',
+       'learning','low', FALSE,
+       'Anyone building mindful habits like journaling, walks, and hydration.',
+       'Simple routines, tracking ideas, and encouragement.',
+       'Keep it practical and kind. No perfectionism culture.',
+       'approved', (NOW() - INTERVAL 12 DAY)
+FROM users u WHERE u.username = 'sam_volunteer'
+UNION ALL
+SELECT u.user_id,
+       'Student Stress Corner',
+       'discussion','medium', TRUE,
+       'Students balancing stress, exams, and life responsibilities.',
+       'Study routines, stress coping, and peer support.',
+       'Be respectful. Avoid harmful advice. Encourage rest and support.',
+       'approved', (NOW() - INTERVAL 11 DAY)
+FROM users u WHERE u.username = 'liam_patient';
+
+-- Creator membership rows
+INSERT IGNORE INTO community_members (community_id, user_id, role, join_reason)
+SELECT c.community_id, u.user_id, 'creator', 'Seed creator'
+FROM communities c JOIN users u ON u.username = 'sam_volunteer'
+WHERE c.name IN ('Demo Community: Depression Support','Anxiety Reset Circle','Mindful Habits & Routines')
+UNION ALL
+SELECT c.community_id, u.user_id, 'creator', 'Seed creator'
+FROM communities c JOIN users u ON u.username = 'dr_faye'
+WHERE c.name IN ('OCD & Intrusive Thoughts','Trauma-Informed Grounding')
+UNION ALL
+SELECT c.community_id, u.user_id, 'creator', 'Seed creator'
+FROM communities c JOIN users u ON u.username = 'noah_patient'
+WHERE c.name IN ('Sleep & Reset Routine')
+UNION ALL
+SELECT c.community_id, u.user_id, 'creator', 'Seed creator'
+FROM communities c JOIN users u ON u.username = 'liam_patient'
+WHERE c.name IN ('Burnout Recovery Lab','Student Stress Corner')
+UNION ALL
+SELECT c.community_id, u.user_id, 'creator', 'Seed creator'
+FROM communities c JOIN users u ON u.username = 'mina_supporter'
+WHERE c.name IN ('Grief & Loss Support')
+UNION ALL
+SELECT c.community_id, u.user_id, 'creator', 'Seed creator'
+FROM communities c JOIN users u ON u.username = 'ava_patient'
+WHERE c.name IN ('Social Anxiety Practice');
+
+-- Make common demo users members so posts are visible after login
+INSERT IGNORE INTO community_members (community_id, user_id, role, join_reason)
+SELECT c.community_id, u.user_id, 'member', 'Seed member'
+FROM communities c
+JOIN users u ON u.username = 'ava_patient'
+WHERE c.name IN (
+    'Demo Community: Depression Support','Anxiety Reset Circle','OCD & Intrusive Thoughts','Sleep & Reset Routine',
+    'Burnout Recovery Lab','Grief & Loss Support','Social Anxiety Practice','Trauma-Informed Grounding',
+    'Mindful Habits & Routines','Student Stress Corner'
+);
+
+INSERT IGNORE INTO community_members (community_id, user_id, role, join_reason)
+SELECT c.community_id, u.user_id, 'member', 'Seed member'
+FROM communities c
+JOIN users u ON u.username = 'noah_patient'
+WHERE c.name IN (
+    'Demo Community: Depression Support','Anxiety Reset Circle','OCD & Intrusive Thoughts','Sleep & Reset Routine',
+    'Burnout Recovery Lab','Grief & Loss Support','Social Anxiety Practice','Trauma-Informed Grounding',
+    'Mindful Habits & Routines','Student Stress Corner'
+);
+
+INSERT IGNORE INTO community_members (community_id, user_id, role, join_reason)
+SELECT c.community_id, u.user_id, 'member', 'Seed member'
+FROM communities c
+JOIN users u ON u.username = 'dr_faye'
+WHERE c.name IN (
+    'Demo Community: Depression Support','Anxiety Reset Circle','OCD & Intrusive Thoughts','Sleep & Reset Routine',
+    'Burnout Recovery Lab','Grief & Loss Support','Social Anxiety Practice','Trauma-Informed Grounding',
+    'Mindful Habits & Routines','Student Stress Corner'
+);
+
+-- Posts (some communities have 2–3 posts)
+INSERT INTO community_posts (community_id, user_id, title, content, is_anonymous, status, created_at, view_count)
+SELECT c.community_id, u.user_id,
+       'Hard to enjoy things I used to like',
+       'I am not feeling excitement for hobbies lately. If you have been there, what helped you reconnect with enjoyment over time?',
+       TRUE, 'published', (NOW() - INTERVAL 1 DAY), 34
+FROM communities c JOIN users u ON u.username = 'ava_patient'
+WHERE c.name = 'Demo Community: Depression Support'
+LIMIT 1;
+
+INSERT INTO community_posts (community_id, user_id, title, content, is_anonymous, status, created_at, view_count)
+SELECT c.community_id, u.user_id,
+       'Low energy and feeling stuck',
+       'Some days it takes all my effort to do basic tasks. What is one tiny habit that helped you regain momentum when motivation is low?',
+       TRUE, 'published', (NOW() - INTERVAL 3 DAY), 18
+FROM communities c JOIN users u ON u.username = 'noah_patient'
+WHERE c.name = 'Demo Community: Depression Support'
+LIMIT 1;
+
+INSERT INTO community_posts (community_id, user_id, title, content, is_anonymous, status, created_at, view_count)
+SELECT c.community_id, u.user_id,
+       'Panic spikes in the middle of the day',
+       'When anxiety hits suddenly, what is your fastest grounding trick? I want something I can do at work without drawing attention.',
+       TRUE, 'published', (NOW() - INTERVAL 2 DAY), 52
+FROM communities c JOIN users u ON u.username = 'noah_patient'
+WHERE c.name = 'Anxiety Reset Circle'
+LIMIT 1;
+
+INSERT INTO community_posts (community_id, user_id, title, content, is_anonymous, status, created_at, view_count)
+SELECT c.community_id, u.user_id,
+       'Reframing worry without forcing positivity',
+       'A practical CBT approach: notice the thought, name the pattern, and choose a small action. What patterns do you catch most often (catastrophizing, mind-reading, etc.)?',
+       FALSE, 'published', (NOW() - INTERVAL 6 DAY), 41
+FROM communities c JOIN users u ON u.username = 'dr_faye'
+WHERE c.name = 'Anxiety Reset Circle'
+LIMIT 1;
+
+INSERT INTO community_posts (community_id, user_id, title, content, is_anonymous, status, created_at, view_count)
+SELECT c.community_id, u.user_id,
+       'Intrusive thoughts feel so convincing',
+       'How do you respond when your mind throws scary “what if” thoughts? I struggle not to engage or seek reassurance.',
+       TRUE, 'published', (NOW() - INTERVAL 4 DAY), 27
+FROM communities c JOIN users u ON u.username = 'ava_patient'
+WHERE c.name = 'OCD & Intrusive Thoughts'
+LIMIT 1;
+
+INSERT INTO community_posts (community_id, user_id, title, content, is_anonymous, status, created_at, view_count)
+SELECT c.community_id, u.user_id,
+       'Night routine that actually sticks?',
+       'I want a simple wind-down routine I can do even on busy nights. What are your “minimum viable” steps?',
+       TRUE, 'published', (NOW() - INTERVAL 5 DAY), 22
+FROM communities c JOIN users u ON u.username = 'noah_patient'
+WHERE c.name = 'Sleep & Reset Routine'
+LIMIT 1;
+
+INSERT INTO community_posts (community_id, user_id, title, content, is_anonymous, status, created_at, view_count)
+SELECT c.community_id, u.user_id,
+       'Waking up at 3am with racing thoughts',
+       'When I wake up in the middle of the night, my brain starts listing problems. How do you get back to sleep without scrolling?',
+       TRUE, 'published', (NOW() - INTERVAL 8 DAY), 31
+FROM communities c JOIN users u ON u.username = 'ava_patient'
+WHERE c.name = 'Sleep & Reset Routine'
+LIMIT 1;
+
+INSERT INTO community_posts (community_id, user_id, title, content, is_anonymous, status, created_at, view_count)
+SELECT c.community_id, u.user_id,
+       'Burnout creeping back in',
+       'I keep pushing through, then crashing. What boundaries helped you protect energy without feeling guilty?',
+       TRUE, 'published', (NOW() - INTERVAL 7 DAY), 46
+FROM communities c JOIN users u ON u.username = 'liam_patient'
+WHERE c.name = 'Burnout Recovery Lab'
+LIMIT 1;
+
+INSERT INTO community_posts (community_id, user_id, title, content, is_anonymous, status, created_at, view_count)
+SELECT c.community_id, u.user_id,
+       'How to rest without feeling “lazy”',
+       'I want to learn how to rest intentionally. What helped you see rest as necessary rather than failure?',
+       FALSE, 'published', (NOW() - INTERVAL 9 DAY), 15
+FROM communities c JOIN users u ON u.username = 'mina_supporter'
+WHERE c.name = 'Burnout Recovery Lab'
+LIMIT 1;
+
+INSERT INTO community_posts (community_id, user_id, title, content, is_anonymous, status, created_at, view_count)
+SELECT c.community_id, u.user_id,
+       'Grief comes in waves',
+       'Some days I feel okay and then something small triggers tears. How do you handle the waves without judging yourself?',
+       TRUE, 'published', (NOW() - INTERVAL 10 DAY), 24
+FROM communities c JOIN users u ON u.username = 'ava_patient'
+WHERE c.name = 'Grief & Loss Support'
+LIMIT 1;
+
+INSERT INTO community_posts (community_id, user_id, title, content, is_anonymous, status, created_at, view_count)
+SELECT c.community_id, u.user_id,
+       'Tiny exposure idea for this week',
+       'My goal: say hello to one person per day. What is your tiny exposure goal that feels challenging but doable?',
+       TRUE, 'published', (NOW() - INTERVAL 2 DAY), 19
+FROM communities c JOIN users u ON u.username = 'ava_patient'
+WHERE c.name = 'Social Anxiety Practice'
+LIMIT 1;
+
+INSERT INTO community_posts (community_id, user_id, title, content, is_anonymous, status, created_at, view_count)
+SELECT c.community_id, u.user_id,
+       'After a conversation I replay everything',
+       'I keep analyzing what I said and cringe. What helps you stop the replay loop?',
+       TRUE, 'published', (NOW() - INTERVAL 6 DAY), 28
+FROM communities c JOIN users u ON u.username = 'noah_patient'
+WHERE c.name = 'Social Anxiety Practice'
+LIMIT 1;
+
+INSERT INTO community_posts (community_id, user_id, title, content, is_anonymous, status, created_at, view_count)
+SELECT c.community_id, u.user_id,
+       'Grounding: 5-4-3-2-1 but simpler',
+       'If counting senses feels too much, try: feel your feet, name one color, sip water, slow exhale. What grounding steps work best for you?',
+       FALSE, 'published', (NOW() - INTERVAL 5 DAY), 37
+FROM communities c JOIN users u ON u.username = 'dr_faye'
+WHERE c.name = 'Trauma-Informed Grounding'
+LIMIT 1;
+
+INSERT INTO community_posts (community_id, user_id, title, content, is_anonymous, status, created_at, view_count)
+SELECT c.community_id, u.user_id,
+       'Creating a “safe place” routine',
+       'A routine can signal safety to the body: dim light, warm drink, familiar scent, gentle music. What elements help you feel safe?',
+       FALSE, 'published', (NOW() - INTERVAL 11 DAY), 21
+FROM communities c JOIN users u ON u.username = 'dr_faye'
+WHERE c.name = 'Trauma-Informed Grounding'
+LIMIT 1;
+
+INSERT INTO community_posts (community_id, user_id, title, content, is_anonymous, status, created_at, view_count)
+SELECT c.community_id, u.user_id,
+       'One habit you are building this week',
+       'Pick one small habit: 10-minute walk, journal 3 lines, drink water. Share your habit and your “fallback version” for hard days.',
+       FALSE, 'published', (NOW() - INTERVAL 3 DAY), 14
+FROM communities c JOIN users u ON u.username = 'sam_volunteer'
+WHERE c.name = 'Mindful Habits & Routines'
+LIMIT 1;
+
+INSERT INTO community_posts (community_id, user_id, title, content, is_anonymous, status, created_at, view_count)
+SELECT c.community_id, u.user_id,
+       'Exam stress is making me freeze',
+       'I stare at my notes and my brain shuts down. What helps you start when you feel overwhelmed?',
+       TRUE, 'published', (NOW() - INTERVAL 1 DAY), 63
+FROM communities c JOIN users u ON u.username = 'liam_patient'
+WHERE c.name = 'Student Stress Corner'
+LIMIT 1;
+
+INSERT INTO community_posts (community_id, user_id, title, content, is_anonymous, status, created_at, view_count)
+SELECT c.community_id, u.user_id,
+       'Procrastination spiral',
+       'When I avoid one task, everything piles up. What is your smallest “first step” rule to break the spiral?',
+       TRUE, 'published', (NOW() - INTERVAL 4 DAY), 29
+FROM communities c JOIN users u ON u.username = 'ava_patient'
+WHERE c.name = 'Student Stress Corner'
+LIMIT 1;
+
+INSERT INTO community_posts (community_id, user_id, title, content, is_anonymous, status, created_at, view_count)
+SELECT c.community_id, u.user_id,
+       'Studying with compassion (not pressure)',
+       'Try a 25-minute focus block, then a short reset. Progress > perfection. What study rhythm works for you?',
+       FALSE, 'published', (NOW() - INTERVAL 12 DAY), 17
+FROM communities c JOIN users u ON u.username = 'dr_faye'
+WHERE c.name = 'Student Stress Corner'
 LIMIT 1;
 
 -- 15 dummy forum posts

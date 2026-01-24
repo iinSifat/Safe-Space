@@ -13,6 +13,7 @@ if (!is_logged_in()) {
 check_session_timeout();
 
 $user_id = get_user_id();
+$is_professional_user = function_exists('is_professional') && is_professional();
 $db = Database::getInstance();
 $conn = $db->getConnection();
 
@@ -25,45 +26,111 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_post'])) {
     $title = sanitize_input($_POST['post_title'] ?? '');
     $category = sanitize_input($_POST['post_category'] ?? '');
     $content = sanitize_input($_POST['post_content'] ?? '');
+
+    $status = 'published';
+    $pin_val = 0;
+
+    if ($is_professional_user) {
+        $raw = trim((string)($_POST['post_content'] ?? ''));
+
+        // Controlled moderation commands without adding UI.
+        if (stripos($raw, '[PIN]') === 0) {
+            $raw = trim(substr($raw, 5));
+            $pin_val = 1;
+        }
+
+        if (stripos($raw, '[FLAG]') === 0) {
+            $raw = trim(substr($raw, 6));
+            $status = 'flagged';
+        }
+
+        $content = sanitize_input($raw);
+        $content = ensure_professional_disclaimer($content);
+
+        // Enforce no diagnosis/prescription language.
+        if (professional_content_has_prohibited_claims($content)) {
+            $status = 'flagged';
+        }
+
+        if (content_has_crisis_keywords($content)) {
+            add_notification((int)$user_id, 'warning', 'Crisis Support', 'If you or someone else is in immediate danger, call your local emergency number. If you are thinking about self-harm, please contact a local crisis hotline right now.');
+        }
+    }
     
     if (!empty($title) && !empty($category) && !empty($content)) {
         $insert_stmt = $conn->prepare("
-            INSERT INTO forum_posts (user_id, category, title, content, is_encrypted, status)
-            VALUES (?, ?, ?, ?, 1, 'published')
+            INSERT INTO forum_posts (user_id, category, title, content, is_encrypted, status, is_pinned)
+            VALUES (?, ?, ?, ?, 1, ?, ?)
         ");
-        $insert_stmt->bind_param("isss", $user_id, $category, $title, $content);
+        $insert_stmt->bind_param("issssi", $user_id, $category, $title, $content, $status, $pin_val);
         if ($insert_stmt->execute()) {
-            $success_message = "✓ Post created successfully!";
-            // Award points
-            $points_stmt = $conn->prepare("UPDATE user_points SET total_points = total_points + 20 WHERE user_id = ?");
-            $points_stmt->bind_param("i", $user_id);
-            $points_stmt->execute();
-            $points_stmt->close();
+                $success_message = $is_professional_user
+                    ? "Professional response submitted successfully!"
+                    : "Post created successfully!";
+
+                // Gamification disabled for professionals
+                if (!$is_professional_user) {
+                    $points_stmt = $conn->prepare("UPDATE user_points SET total_points = total_points + 20 WHERE user_id = ?");
+                    $points_stmt->bind_param("i", $user_id);
+                    $points_stmt->execute();
+                    $points_stmt->close();
+                } elseif ($status === 'flagged') {
+                    add_notification((int)$user_id, 'info', 'Post held for review', 'Your professional post was held from public view due to restricted language. Please revise and try again.');
+                }
         }
         $insert_stmt->close();
     }
 }
 
-// Get selected category
-$selected_category = sanitize_input($_GET['category'] ?? '');
-
-// Get posts
-$query = "SELECT fp.post_id, fp.user_id, fp.title, fp.category, fp.view_count, fp.reply_count, fp.created_at, 
-           u.username, u.is_anonymous
-          FROM forum_posts fp
-          JOIN users u ON fp.user_id = u.user_id
-          WHERE fp.status = 'published'";
-
-if (!empty($selected_category)) {
-    $query .= " AND fp.category = '$selected_category'";
+// Get selected category (validate against known list)
+$selected_category = trim((string)($_GET['category'] ?? ''));
+if ($selected_category !== '' && !in_array($selected_category, $categories, true)) {
+    $selected_category = '';
 }
 
-$query .= " ORDER BY fp.created_at DESC LIMIT 50";
+// Reactions (share types with blog/forum detail)
+$reaction_types = ['like', 'celebrate', 'support', 'love', 'insightful', 'curious'];
+$reaction_assets = [
+    'like' => '../images/reactions/like.png',
+    'celebrate' => '../images/reactions/Linkedin-Celebrate-Icon-ClappingHands500.png',
+    'support' => '../images/reactions/Linkedin-Support-Icon-HeartinHand500.png',
+    'love' => '../images/reactions/Linkedin-Love-Icon-Heart500.png',
+    'insightful' => '../images/reactions/Linkedin-Insightful-Icon-Lamp500.png',
+    'curious' => '../images/reactions/Linkedin-Curious-Icon-PurpleSmiley500.png',
+];
 
-$posts_result = $conn->query($query);
-$posts = [];
-while ($row = $posts_result->fetch_assoc()) {
-    $posts[] = $row;
+// Get posts (blog-card style preview + reactions)
+$sql = "
+    SELECT fp.post_id, fp.user_id, fp.title, fp.category, fp.content, fp.view_count, fp.reply_count, fp.created_at,
+           u.username, u.is_anonymous, u.user_type,
+           p.full_name AS professional_full_name, p.specialization AS professional_specialization, p.verification_status AS professional_verification_status,
+           (SELECT COUNT(*) FROM forum_post_reactions fpr WHERE fpr.post_id = fp.post_id) AS total_reactions,
+           (SELECT reaction_type FROM forum_post_reactions fpr2 WHERE fpr2.post_id = fp.post_id AND fpr2.user_id = ? LIMIT 1) AS my_reaction
+    FROM forum_posts fp
+    JOIN users u ON fp.user_id = u.user_id
+    LEFT JOIN professionals p ON p.user_id = u.user_id
+    WHERE fp.status = 'published'
+";
+
+$params = [$user_id];
+$types = 'i';
+
+if ($selected_category !== '') {
+    $sql .= ' AND fp.category = ?';
+    $params[] = $selected_category;
+    $types .= 's';
+}
+
+$sql .= ' ORDER BY fp.is_pinned DESC, fp.created_at DESC LIMIT 50';
+
+$stmt = $conn->prepare($sql);
+if (!$stmt) {
+    $posts = [];
+} else {
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $posts = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
 }
 
 ?>
@@ -114,8 +181,8 @@ while ($row = $posts_result->fetch_assoc()) {
         .category-btn {
             text-decoration: none;
             padding: 8px 16px;
-            border: 2px solid var(--light-gray);
-            background: white;
+            border: 2px solid var(--border-soft, #D8E2DD);
+            background: var(--bg-card, #F8F9F7);
             border-radius: var(--radius-sm);
             cursor: pointer;
             transition: all var(--transition-fast);
@@ -125,15 +192,15 @@ while ($row = $posts_result->fetch_assoc()) {
 
         .category-btn:hover,
         .category-btn.active {
-            background: var(--primary-color);
-            border-color: var(--primary-color);
-            color: white;
+            background: var(--accent-primary, #7FAFA3);
+            border-color: var(--accent-primary, #7FAFA3);
+            color: #FFFFFF;
         }
 
         .new-post-btn {
             padding: 10px 20px;
-            background: var(--primary-color);
-            color: white;
+            background: var(--accent-primary, #7FAFA3);
+            color: #FFFFFF;
             border: none;
             border-radius: var(--radius-sm);
             cursor: pointer;
@@ -142,7 +209,7 @@ while ($row = $posts_result->fetch_assoc()) {
         }
 
         .new-post-btn:hover {
-            background: var(--primary-dark);
+            background: var(--primary-dark, #6A9A8E);
         }
 
         .modal-overlay {
@@ -163,7 +230,7 @@ while ($row = $posts_result->fetch_assoc()) {
         }
 
         .modal-dialog {
-            background: white;
+            background: var(--bg-card, #F8F9F7);
             border-radius: var(--radius-lg);
             padding: 2rem;
             max-width: 600px;
@@ -221,19 +288,183 @@ while ($row = $posts_result->fetch_assoc()) {
             gap: 1.5rem;
         }
 
+        /* Blog-style post cards (match blog feed) */
         .post-card {
-            background: white;
-            border-radius: var(--radius-md);
-            padding: 1.5rem;
+            background: var(--bg-card, #F8F9F7);
+            border: 1px solid var(--border-soft, #D8E2DD);
+            border-radius: 18px;
+            padding: 16px;
             box-shadow: var(--shadow-sm);
-            transition: all var(--transition-normal);
+            transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+        }
+        .post-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .post-open {
+            display: block;
+            width: 100%;
+            text-align: left;
+            border: 0;
+            background: transparent;
+            color: inherit;
+            padding: 0;
             cursor: pointer;
         }
 
-        .post-card:hover {
-            box-shadow: var(--shadow-md);
-            transform: translateY(-2px);
+        .post-header-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
         }
+
+        .post-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(127, 175, 163, 0.18);
+            color: var(--text-primary);
+            font-weight: 950;
+            flex: 0 0 auto;
+        }
+
+        .post-head-text { flex: 1; min-width: 0; }
+
+        .post-name-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .post-name { font-weight: 950; color: var(--text-primary); }
+
+        .pro-badge {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(123, 93, 255, 0.14);
+            color: var(--secondary-color);
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-weight: 900;
+            font-size: 0.8rem;
+        }
+
+        .post-sub {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            font-size: 0.92rem;
+        }
+
+        .category-chip {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(127, 175, 163, 0.15);
+            color: var(--accent-primary, #7FAFA3);
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-weight: 900;
+            font-size: 0.85rem;
+        }
+
+        .post-title {
+            margin-top: 12px;
+            font-size: 1.15rem;
+            font-weight: 950;
+            color: var(--text-primary);
+        }
+
+        .post-excerpt {
+            margin-top: 8px;
+            color: var(--text-secondary);
+            line-height: 1.65;
+            white-space: pre-wrap;
+        }
+
+        .post-stats {
+            display: flex;
+            gap: 14px;
+            margin-top: 12px;
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+            flex-wrap: wrap;
+        }
+
+        .post-actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            border-top: 1px solid var(--border-soft, #D8E2DD);
+            margin-top: 12px;
+            padding-top: 12px;
+        }
+
+        .post-action,
+        .post-actions .reaction-trigger {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid var(--border-soft, #D8E2DD);
+            background: var(--bg-card, #F8F9F7);
+            border-radius: 999px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-weight: 800;
+        }
+
+        .feed-reaction { position: relative; }
+        .feed-reaction .reaction-trigger img { width: 22px; height: 22px; object-fit: contain; }
+
+        .reaction-popup {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            transform: translateY(-2px) scale(0.98);
+            display: flex;
+            gap: 0.25rem;
+            padding: 0.5rem 0.6rem;
+            background: var(--bg-card, #F8F9F7);
+            border-radius: 999px;
+            box-shadow: 0 12px 30px rgba(12, 27, 51, 0.15);
+            border: 1px solid var(--border-soft, #D8E2DD);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity var(--transition-fast), transform var(--transition-fast);
+            z-index: 50;
+        }
+        .feed-reaction:hover .reaction-popup,
+        .feed-reaction:focus-within .reaction-popup {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(-2px) scale(1);
+        }
+        .reaction-option {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px;
+            cursor: pointer;
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+        }
+        .reaction-option:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: var(--shadow-sm);
+        }
+        .reaction-option img { width: 100%; height: 100%; object-fit: contain; }
 
         /* Post Details Overlay (DBMS-style effect, loads existing post page in iframe) */
         .post-modal-overlay {
@@ -259,7 +490,7 @@ while ($row = $posts_result->fetch_assoc()) {
         }
 
         .post-modal-content {
-            background: white;
+            background: var(--bg-card, #F8F9F7);
             border-radius: var(--radius-lg);
             box-shadow: 0 20px 60px rgba(12, 27, 51, 0.3);
             max-width: 900px;
@@ -275,7 +506,7 @@ while ($row = $posts_result->fetch_assoc()) {
             height: 92vh;
             border: 0;
             display: block;
-            background: white;
+            background: var(--bg-surface, #F3F5F2);
         }
 
         @keyframes slideUp {
@@ -293,8 +524,8 @@ while ($row = $posts_result->fetch_assoc()) {
             position: absolute;
             top: 1rem;
             right: 1rem;
-            background: rgba(255, 255, 255, 0.9);
-            border: 1px solid var(--light-gray);
+            background: var(--bg-card, #F8F9F7);
+            border: 1px solid var(--border-soft, #D8E2DD);
             width: 40px;
             height: 40px;
             border-radius: 999px;
@@ -326,37 +557,7 @@ while ($row = $posts_result->fetch_assoc()) {
             }
         }
 
-        .post-category {
-            display: inline-block;
-            background: rgba(107, 155, 209, 0.15);
-            color: var(--primary-color);
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-        }
-
-        .post-title {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 0.5rem;
-        }
-
-        .post-meta {
-            display: flex;
-            gap: 1rem;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            margin-bottom: 1rem;
-        }
-
-        .post-stat {
-            display: flex;
-            gap: 0.25rem;
-            align-items: center;
-        }
+        /* legacy forum list styles removed in favor of blog-card */
 
         .success-alert {
             background: rgba(111, 207, 151, 0.15);
@@ -393,7 +594,8 @@ while ($row = $posts_result->fetch_assoc()) {
                     <h2 style="margin: 0; font-size: 18px; color: var(--text-primary);"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Community Forum</h2>
                     <div class="top-bar-right">
                         <a href="notifications.php" style="text-decoration: none; color: var(--text-primary); font-weight: 600; padding: 8px 16px; background: var(--light-bg); border-radius: 8px;">
-                            🔔 Notifications
+                            <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                            Notifications
                         </a>
                     </div>
                 </div>
@@ -429,19 +631,78 @@ while ($row = $posts_result->fetch_assoc()) {
         <div class="post-list">
             <?php if (count($posts) > 0): ?>
                 <?php foreach ($posts as $post): ?>
-                    <div class="post-card" onclick="openPostModal(<?php echo $post['post_id']; ?>)">
-                        <div class="post-category"><?php echo htmlspecialchars($post['category']); ?></div>
-                        <h3 class="post-title"><?php echo htmlspecialchars($post['title']); ?></h3>
-                        <div class="post-meta">
-                            <?php
-                                $post_author = !empty($post['is_anonymous'])
-                                    ? get_anonymous_display_name($post['user_id'])
-                                    : $post['username'];
-                            ?>
-                            <span class="post-stat"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 4px; vertical-align: middle;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/></svg><?php echo htmlspecialchars($post_author); ?></span>
-                            <span class="post-stat"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 4px; vertical-align: middle;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><?php echo $post['view_count']; ?> views</span>
-                            <span class="post-stat"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 4px; vertical-align: middle;"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><?php echo $post['reply_count']; ?> replies</span>
-                            <span class="post-stat"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 4px; vertical-align: middle;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><?php echo date('M j, Y', strtotime($post['created_at'])); ?></span>
+                    <?php
+                        $is_post_professional = (($post['user_type'] ?? '') === 'professional');
+                        $post_author = $is_post_professional
+                            ? (!empty($post['professional_full_name']) ? $post['professional_full_name'] : ($post['username'] ?? 'User'))
+                            : (!empty($post['is_anonymous']) ? get_anonymous_display_name((int)$post['user_id']) : ($post['username'] ?? 'User'));
+                        $post_author_label = $is_post_professional
+                            ? professional_authority_label(($post['professional_specialization'] ?? ''), ($post['professional_verification_status'] ?? ''))
+                            : '';
+
+                        $avatarLetter = strtoupper(substr((string)$post_author, 0, 1));
+                        $rawContent = (string)($post['content'] ?? '');
+                        $excerpt = function_exists('mb_substr') ? mb_substr($rawContent, 0, 180) : substr($rawContent, 0, 180);
+                        $excerpt = trim($excerpt);
+                        $hasMore = (function_exists('mb_strlen') ? mb_strlen($rawContent) : strlen($rawContent)) > (function_exists('mb_strlen') ? mb_strlen($excerpt) : strlen($excerpt));
+
+                        $myReaction = !empty($post['my_reaction']) ? (string)$post['my_reaction'] : null;
+                        $activeReaction = $myReaction && isset($reaction_assets[$myReaction]) ? $myReaction : 'like';
+                        $activeReactionLabel = $myReaction ? ucfirst($myReaction) : 'React';
+                        $reactionTotal = (int)($post['total_reactions'] ?? 0);
+                    ?>
+                    <div class="post-card">
+                        <button type="button" class="post-open" data-open-post-id="<?php echo (int)$post['post_id']; ?>" aria-label="Open forum post">
+                            <div class="post-header-row">
+                                <div class="post-avatar" aria-hidden="true"><?php echo htmlspecialchars($avatarLetter); ?></div>
+                                <div class="post-head-text">
+                                    <div class="post-name-row">
+                                        <span class="post-name"><?php echo htmlspecialchars((string)$post_author); ?></span>
+                                        <?php if ($is_post_professional && $post_author_label !== ''): ?>
+                                            <span class="pro-badge"><?php echo htmlspecialchars($post_author_label); ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="post-sub">
+                                        <span><?php echo date('M j, Y', strtotime($post['created_at'])); ?></span>
+                                        <span aria-hidden="true">·</span>
+                                        <span class="category-chip"><?php echo htmlspecialchars((string)$post['category']); ?></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="post-title"><?php echo htmlspecialchars((string)$post['title']); ?></div>
+                            <?php if ($excerpt !== ''): ?>
+                                <p class="post-excerpt"><?php echo htmlspecialchars($excerpt); ?><?php echo $hasMore ? '…' : ''; ?></p>
+                            <?php endif; ?>
+                        </button>
+
+                        <div class="post-stats">
+                            <span><svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> <?php echo (int)$post['view_count']; ?> views</span>
+                            <span><svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg> <strong data-reaction-total><?php echo $reactionTotal; ?></strong> reactions</span>
+                            <span><svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> <?php echo (int)$post['reply_count']; ?> replies</span>
+                        </div>
+
+                        <div class="post-actions" aria-label="Post actions">
+                            <div class="feed-reaction" data-post-id="<?php echo (int)$post['post_id']; ?>">
+                                <button type="button" class="reaction-trigger" aria-haspopup="true" aria-expanded="false">
+                                    <img class="active-reaction-icon" src="<?php echo htmlspecialchars($reaction_assets[$activeReaction]); ?>" alt="Reaction">
+                                    <span class="active-reaction-label"><?php echo htmlspecialchars($activeReactionLabel); ?></span>
+                                </button>
+                                <div class="reaction-popup" role="menu" aria-label="Choose a reaction">
+                                    <?php foreach ($reaction_types as $reaction_type): ?>
+                                        <button class="reaction-option" type="button" data-reaction="<?php echo $reaction_type; ?>" aria-label="React with <?php echo ucfirst($reaction_type); ?>">
+                                            <img src="<?php echo htmlspecialchars($reaction_assets[$reaction_type]); ?>" alt="<?php echo ucfirst($reaction_type); ?>">
+                                        </button>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+
+                            <button type="button" class="post-action post-action-comment" data-comment-post-id="<?php echo (int)$post['post_id']; ?>">
+                                <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                Comment
+                            </button>
+
+                            <button type="button" class="post-action post-action-share" data-share-post-id="<?php echo (int)$post['post_id']; ?>">↗ Share</button>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -456,7 +717,9 @@ while ($row = $posts_result->fetch_assoc()) {
         <!-- Navigation Buttons -->
         <div style="display: flex; gap: 1rem; margin-top: 2rem; flex-wrap: wrap;">
             <a href="index.php" class="btn btn-primary">Back to Dashboard</a>
-            <a href="mood_tracker.php" class="btn btn-secondary">Mood Tracker</a>
+            <?php if (!$is_professional_user): ?>
+                <a href="mood_tracker.php" class="btn btn-secondary">Mood Tracker</a>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -508,11 +771,12 @@ while ($row = $posts_result->fetch_assoc()) {
     </div>
 
     <script>
-        function openPostModal(postId) {
+        function openPostModal(postId, hash) {
             const overlay = document.getElementById('postModalOverlay');
             const frame = document.getElementById('postModalFrame');
 
-            frame.src = `forum_view.php?post_id=${postId}`;
+            const hashPart = hash ? ('#' + String(hash).replace(/^#/, '')) : '';
+            frame.src = `forum_view.php?post_id=${postId}${hashPart}`;
             overlay.classList.add('active');
         }
 
@@ -555,6 +819,96 @@ while ($row = $posts_result->fetch_assoc()) {
         setTimeout(() => {
             document.querySelector('.success-alert.show')?.classList.remove('show');
         }, 3000);
+
+        // Blog-style card interactions
+        document.querySelectorAll('[data-open-post-id]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const postId = parseInt(btn.getAttribute('data-open-post-id') || '0', 10);
+                if (postId > 0) openPostModal(postId);
+            });
+            btn.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    const postId = parseInt(btn.getAttribute('data-open-post-id') || '0', 10);
+                    if (postId > 0) openPostModal(postId);
+                }
+            });
+        });
+
+        // Comment opens detail modal and scrolls to form
+        document.querySelectorAll('[data-comment-post-id]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const postId = parseInt(btn.getAttribute('data-comment-post-id') || '0', 10);
+                if (postId > 0) openPostModal(postId, 'replyFormSection');
+            });
+        });
+
+        // Share copies link to the post details page
+        document.querySelectorAll('[data-share-post-id]').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+                const postId = parseInt(btn.getAttribute('data-share-post-id') || '0', 10);
+                if (postId <= 0) return;
+                const link = `${window.location.origin}${window.location.pathname.replace(/forum\.php$/i, 'forum_view.php')}?post_id=${postId}`;
+                try {
+                    await navigator.clipboard.writeText(link);
+                    const oldText = btn.textContent;
+                    btn.textContent = 'Link copied!';
+                    setTimeout(() => { btn.textContent = oldText; }, 1400);
+                } catch {
+                    window.prompt('Copy this link', link);
+                }
+            });
+        });
+
+        // Reactions on list cards (same behavior as blog feed)
+        const reactionAssets = <?php echo json_encode($reaction_assets); ?>;
+        const reactionLabels = <?php echo json_encode(array_combine($reaction_types, array_map('ucfirst', $reaction_types))); ?>;
+
+        async function sendForumReaction(wrapper, reactionType) {
+            const postId = parseInt(wrapper?.dataset?.postId || '0', 10);
+            if (postId <= 0) return;
+
+            const payload = { post_id: postId, reaction_type: reactionType };
+            const response = await fetch('forum_reaction_handler.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify(payload),
+            });
+            const data = await response.json();
+            if (!data?.success) throw new Error(data?.message || 'Reaction failed');
+
+            const selected = data.reaction || reactionType;
+            wrapper.querySelector('.active-reaction-icon').src = reactionAssets[selected] || reactionAssets.like;
+            wrapper.querySelector('.active-reaction-label').textContent = reactionLabels[selected] || 'React';
+            const totalEl = wrapper.closest('.post-card')?.querySelector('[data-reaction-total]');
+            if (totalEl) totalEl.textContent = String(data.total_reactions ?? 0);
+        }
+
+        document.querySelectorAll('.feed-reaction').forEach((wrapper) => {
+            const trigger = wrapper.querySelector('.reaction-trigger');
+            const popup = wrapper.querySelector('.reaction-popup');
+
+            trigger?.addEventListener('click', async (e) => {
+                e.preventDefault();
+                try {
+                    await sendForumReaction(wrapper, 'like');
+                } catch (err) {
+                    console.error(err);
+                }
+            });
+
+            popup?.querySelectorAll('.reaction-option').forEach((btn) => {
+                btn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    const reactionType = btn.dataset.reaction;
+                    try {
+                        await sendForumReaction(wrapper, reactionType);
+                    } catch (err) {
+                        console.error(err);
+                    }
+                });
+            });
+        });
     </script>
 </body>
 </html>

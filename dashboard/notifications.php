@@ -26,12 +26,12 @@ $notifications = get_notifications($user_id, 50);
         <link rel="stylesheet" href="includes/dashboard-layout.css">
     <style>
         .page { max-width: 900px; margin: 40px auto; padding: 0 16px; }
-        .card { background: #fff; border-radius: 20px; padding: 24px; box-shadow: var(--shadow-sm); }
+        .card { background: var(--bg-card, #F8F9F7); border-radius: 20px; padding: 24px; box-shadow: var(--shadow-sm); }
         .notif-item { padding: 12px 0; border-bottom: 1px solid var(--light-gray); display: flex; justify-content: space-between; align-items: center; }
         .notif-item:last-child { border-bottom: none; }
         .notif-title { font-weight: 700; }
         .notif-meta { color: var(--text-secondary); font-size: 0.85rem; }
-        .badge { background: rgba(20,184,166,0.12); color: var(--primary-dark); padding: 6px 10px; border-radius: 12px; font-weight: 700; font-size: 0.8rem; }
+        .badge { background: rgba(127, 175, 163, 0.18); color: var(--text-primary); padding: 6px 10px; border-radius: 12px; font-weight: 700; font-size: 0.8rem; }
     </style>
 </head>
 <body>
@@ -40,7 +40,7 @@ $notifications = get_notifications($user_id, 50);
         
         <main class="main-content">
             <div class="top-bar">
-                <h2 style="margin: 0; font-size: 18px; color: var(--text-primary);">🔔 Notifications</h2>
+                <h2 style="margin: 0; font-size: 18px; color: var(--text-primary);"><svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Notifications</h2>
             </div>
             
             <div class="content-area">

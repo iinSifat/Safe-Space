@@ -3,27 +3,36 @@
    Calming, Supportive, and Accessible Design
    ================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
 
 :root {
-    /* Primary Color Palette - Teal and Indigo to match landing */
-    --primary-color: #14b8a6;        /* Teal */
-    --primary-dark: #0e9486;         /* Deep Teal */
-    --primary-light: #3ad0be;        /* Light Teal */
+    /* Refined Color Palette - Calm Mint Theme */
+    --bg-page: #BFDCD2;              /* page background */
+    --bg-primary: #BFDCD2;           /* soft mint background */
+    --bg-surface: #F3F5F2;           /* soft off-white surface */
+    --bg-card: #F8F9F7;              /* slightly lighter card */
+    --accent-primary: #7FAFA3;       /* calm muted green */
+    --accent-soft: #9FBFB6;          /* softer accent */
+    --border-soft: #D8E2DD;
+    
+    /* Primary Color Palette - mapped to new theme */
+    --primary-color: #7FAFA3;        /* accent primary */
+    --primary-dark: #6A9A8E;         /* darker accent */
+    --primary-light: #9FBFB6;        /* lighter accent */
     
     /* Secondary Colors */
-    --secondary-color: #7b5dff;      /* Indigo */
-    --accent-color: #3ac7ff;         /* Sky */
-    --accent-warm: #ff986f;          /* Coral */
+    --secondary-color: #5F7F7A;      /* muted teal */
+    --accent-color: #9FBFB6;         /* soft accent */
+    --accent-warm: #7FAFA3;          /* calm accent */
     
     /* Neutral Colors */
-    --white: #ffffff;
-    --light-bg: #f8fbff;
-    --light-gray: #e5e9f2;
-    --medium-gray: #97a4b8;
-    --dark-gray: #0c1b33;
-    --text-primary: #0c1b33;
-    --text-secondary: #5a6b8a;
+    --white: #F8F9F7;
+    --light-bg: #F3F5F2;
+    --light-gray: #D8E2DD;
+    --medium-gray: #5F7F7A;
+    --dark-gray: #243B3B;
+    --text-primary: #243B3B;
+    --text-secondary: #5F7F7A;
     
     /* Status Colors */
     --success: #22c55e;
@@ -72,18 +81,36 @@ html {
 }
 
 body {
-    font-family: 'Manrope', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background:
-        radial-gradient(circle at 20% 25%, rgba(20, 184, 166, 0.16), transparent 32%),
-        radial-gradient(circle at 80% 20%, rgba(123, 93, 255, 0.14), transparent 34%),
-        radial-gradient(circle at 60% 70%, rgba(255, 152, 111, 0.14), transparent 36%),
-        var(--light-bg);
+    font-family: 'Inter', 'DM Sans', 'Poppins', system-ui, -apple-system, sans-serif;
+    background: var(--bg-primary);
     color: var(--text-primary);
     line-height: 1.6;
     min-height: 100vh;
     overflow-x: hidden;
     position: relative;
     margin: 0;
+}
+
+/* ================================================
+   INLINE SVG ICONS (used instead of emojis)
+   ================================================ */
+
+.icon {
+    width: 1em !important;
+    height: 1em !important;
+    display: inline-block;
+    vertical-align: -0.125em;
+    flex: 0 0 auto;
+}
+
+.icon--sm {
+    width: 16px !important;
+    height: 16px !important;
+}
+
+.icon--md {
+    width: 18px !important;
+    height: 18px !important;
 }
 
 /* Animated Background Particles */
@@ -95,9 +122,9 @@ body::before {
     width: 100%;
     height: 100%;
     background:
-        radial-gradient(circle at 15% 20%, rgba(20, 184, 166, 0.12), transparent 30%),
-        radial-gradient(circle at 85% 25%, rgba(123, 93, 255, 0.12), transparent 32%),
-        radial-gradient(circle at 55% 75%, rgba(58, 199, 255, 0.12), transparent 34%);
+        radial-gradient(circle at 15% 20%, rgba(127, 175, 163, 0.08), transparent 30%),
+        radial-gradient(circle at 85% 25%, rgba(95, 127, 122, 0.08), transparent 32%),
+        radial-gradient(circle at 55% 75%, rgba(159, 191, 182, 0.08), transparent 34%);
     pointer-events: none;
     z-index: 0;
 }
@@ -132,7 +159,7 @@ body::before {
    ================================================ */
 
 .auth-card {
-    background: var(--white);
+    background: var(--bg-card);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
     padding: var(--spacing-xl);
@@ -147,7 +174,8 @@ body::before {
     left: 0;
     right: 0;
     height: 6px;
-    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color), var(--accent-color));
+    background: linear-gradient(90deg, var(--accent-primary), var(--accent-soft), var(--accent-primary));
+    opacity: 0.8;
 }
 
 /* ================================================
@@ -163,7 +191,7 @@ body::before {
     width: 80px;
     height: 80px;
     margin: 0 auto var(--spacing-sm);
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-soft));
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -186,7 +214,7 @@ body::before {
 .logo-text {
     font-size: 2rem;
     font-weight: 700;
-    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+    background: linear-gradient(90deg, var(--text-primary), var(--text-secondary));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -225,12 +253,12 @@ body::before {
 .form-textarea {
     width: 100%;
     padding: 12px 16px;
-    border: 2px solid var(--light-gray);
+    border: 2px solid var(--border-soft);
     border-radius: var(--radius-sm);
     font-size: 1rem;
     font-family: inherit;
     transition: all var(--transition-normal);
-    background: var(--white);
+    background: var(--bg-card);
     color: var(--text-primary);
 }
 
@@ -238,8 +266,8 @@ body::before {
 .form-select:focus,
 .form-textarea:focus {
     outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 4px rgba(107, 155, 209, 0.1);
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 4px rgba(127, 175, 163, 0.15);
 }
 
 .form-input::placeholder {
@@ -306,8 +334,8 @@ body::before {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-    color: var(--white);
+    background: var(--accent-primary);
+    color: #FFFFFF;
     box-shadow: var(--shadow-sm);
 }
 
@@ -326,13 +354,13 @@ body::before {
 }
 
 .btn-secondary {
-    background: rgba(20, 184, 166, 0.08);
-    color: var(--primary-dark);
-    border: 2px solid rgba(20, 184, 166, 0.4);
+    background: transparent;
+    color: var(--accent-primary);
+    border: 2px solid var(--accent-primary);
 }
 
 .btn-secondary:hover {
-    background: rgba(20, 184, 166, 0.16);
+    background: rgba(127, 175, 163, 0.12);
 }
 
 .btn:disabled {
@@ -353,32 +381,32 @@ body::before {
 }
 
 .role-card {
-    border: 2px solid var(--light-gray);
+    border: 2px solid var(--border-soft);
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
     text-align: center;
     cursor: pointer;
     transition: all var(--transition-normal);
-    background: var(--white);
+    background: var(--bg-card);
 }
 
 .role-card:hover {
-    border-color: var(--primary-light);
+    border-color: var(--accent-soft);
     transform: translateY(-4px);
     box-shadow: var(--shadow-md);
 }
 
 .role-card.active {
-    border-color: var(--primary-color);
-    background: linear-gradient(135deg, rgba(107, 155, 209, 0.1), rgba(184, 166, 217, 0.1));
-    box-shadow: var(--shadow-glow);
+    border-color: var(--accent-primary);
+    background: rgba(127, 175, 163, 0.08);
+    box-shadow: 0 0 24px rgba(127, 175, 163, 0.2);
 }
 
 .role-icon {
     width: 50px;
     height: 50px;
     margin: 0 auto var(--spacing-xs);
-    background: linear-gradient(135deg, var(--primary-light), var(--secondary-color));
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-soft));
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -468,14 +496,14 @@ body::before {
 }
 
 .text-link {
-    color: var(--primary-color);
+    color: var(--text-primary);
     text-decoration: none;
     font-weight: 500;
     transition: color var(--transition-fast);
 }
 
 .text-link:hover {
-    color: var(--primary-dark);
+    color: var(--accent-primary);
     text-decoration: underline;
 }
 
@@ -492,7 +520,7 @@ body::before {
 .divider::after {
     content: '';
     flex: 1;
-    border-bottom: 1px solid var(--light-gray);
+    border-bottom: 1px solid var(--border-soft);
 }
 
 .divider::before {
@@ -662,7 +690,7 @@ body::before {
    ================================================ */
 
 .mood-meter-container {
-    background: linear-gradient(135deg, var(--primary-light), rgba(168, 201, 232, 0.3));
+    background: var(--bg-surface);
     border-radius: var(--radius-lg);
     padding: var(--spacing-lg);
     margin-bottom: var(--spacing-lg);
@@ -720,9 +748,9 @@ body::before {
 }
 
 .mood-option.active {
-    border-color: var(--primary-color);
-    background: rgba(107, 155, 209, 0.1);
-    box-shadow: var(--shadow-glow);
+    border-color: var(--accent-primary);
+    background: rgba(127, 175, 163, 0.1);
+    box-shadow: 0 0 24px rgba(127, 175, 163, 0.2);
 }
 
 .mood-option.active .mood-emoji {
@@ -813,7 +841,7 @@ body::before {
 .mood-notes textarea {
     width: 100%;
     padding: 12px;
-    border: 2px solid var(--light-gray);
+    border: 2px solid var(--border-soft);
     border-radius: var(--radius-sm);
     font-family: inherit;
     font-size: 0.95rem;
@@ -824,15 +852,15 @@ body::before {
 
 .mood-notes textarea:focus {
     outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 4px rgba(107, 155, 209, 0.1);
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 4px rgba(127, 175, 163, 0.15);
 }
 
 .mood-submit-btn {
     width: 100%;
     padding: 14px;
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-    color: white;
+    background: var(--accent-primary);
+    color: #FFFFFF;
     border: none;
     border-radius: var(--radius-sm);
     font-size: 1rem;
@@ -848,7 +876,7 @@ body::before {
 }
 
 .mood-history {
-    background: var(--white);
+    background: var(--bg-card);
     border-radius: var(--radius-lg);
     padding: var(--spacing-lg);
     margin-top: var(--spacing-lg);
@@ -875,7 +903,7 @@ body::before {
 }
 
 .mood-entry:hover {
-    background: var(--light-bg);
+    background: var(--bg-surface);
     border-radius: var(--radius-sm);
 }
 
@@ -931,7 +959,7 @@ body::before {
 }
 
 .mood-chart {
-    background: var(--light-bg);
+    background: var(--bg-surface);
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
     margin-top: var(--spacing-md);
@@ -954,7 +982,7 @@ body::before {
 
 .chart-bar {
     flex: 1;
-    background: linear-gradient(180deg, var(--primary-color), var(--primary-light));
+    background: linear-gradient(180deg, var(--accent-primary), var(--accent-soft));
     border-radius: 4px 4px 0 0;
     position: relative;
     cursor: pointer;
@@ -994,23 +1022,23 @@ body::before {
 }
 
 .activity-tag {
-    background: rgba(107, 155, 209, 0.15);
-    color: var(--primary-color);
+    background: rgba(127, 175, 163, 0.12);
+    color: var(--text-primary);
     padding: 6px 14px;
     border-radius: 20px;
     font-size: 0.85rem;
     cursor: pointer;
     transition: all var(--transition-fast);
-    border: 1px solid rgba(107, 155, 209, 0.3);
+    border: 1px solid var(--border-soft);
 }
 
 .activity-tag:hover {
-    background: rgba(107, 155, 209, 0.25);
-    border-color: var(--primary-color);
+    background: rgba(127, 175, 163, 0.2);
+    border-color: var(--accent-primary);
 }
 
 .activity-tag.selected {
-    background: var(--primary-color);
-    color: white;
-    border-color: var(--primary-color);
+    background: var(--accent-primary);
+    color: #FFFFFF;
+    border-color: var(--accent-primary);
 }

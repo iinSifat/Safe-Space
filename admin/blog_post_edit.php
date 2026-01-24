@@ -102,14 +102,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <style>
         body { background: var(--light-bg); padding: 24px; }
         .page { max-width: 900px; margin: 0 auto; }
-        .card { background:#fff; border-radius: 20px; padding: 24px; box-shadow: var(--shadow-sm); }
+        .card { background: var(--bg-card, #F8F9F7); border-radius: 20px; padding: 24px; box-shadow: var(--shadow-sm); }
         .form-group { margin-bottom: 12px; }
         .form-group label { display:block; font-weight: 900; margin-bottom: 6px; color: var(--text-primary); }
-        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 2px solid var(--light-gray); border-radius: 12px; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 2px solid var(--border-soft, #D8E2DD); border-radius: 12px; }
         .form-group textarea { min-height: 180px; resize: vertical; }
         .actions { display:flex; gap: 10px; flex-wrap: wrap; }
-        .btn-danger { background: #fff; border: 1px solid rgba(239,68,68,0.5); color: #b91c1c; }
-        .btn-link { text-decoration:none; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--light-gray); background: #fff; font-weight: 900; }
+        .btn-danger { background: var(--bg-card, #F8F9F7); border: 1px solid rgba(239,68,68,0.5); color: #b91c1c; }
+        .btn-link { text-decoration:none; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border-soft, #D8E2DD); background: var(--bg-card, #F8F9F7); font-weight: 900; }
         .chip { display:inline-flex; align-items:center; gap: 8px; padding: 6px 10px; border-radius: 999px; background: rgba(123,93,255,0.12); color: #4c3bb8; font-weight: 900; font-size: 0.8rem; }
     </style>
 </head>

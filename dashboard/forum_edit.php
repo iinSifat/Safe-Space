@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_forum_post']))
             padding: 2rem 1rem;
         }
         .card {
-            background: white;
+            background: var(--bg-card, #F8F9F7);
             border-radius: var(--radius-lg);
             box-shadow: var(--shadow-sm);
             padding: 2rem;

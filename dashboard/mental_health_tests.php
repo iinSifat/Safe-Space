@@ -12,6 +12,12 @@ if (!isset($_SESSION['user_id'])) {
     redirect('../auth/login.php');
 }
 
+// Professionals do not use self-help modules
+if (function_exists('is_professional') && is_professional()) {
+    set_flash_message('info', 'Mental health tests are disabled for professional accounts.');
+    redirect('index.php');
+}
+
 $user_id = $_SESSION['user_id'];
 $page_title = 'Mental Health Self-Assessment';
 
@@ -108,22 +114,22 @@ $recent_results = $result->fetch_all(MYSQLI_ASSOC);
         /* Background images per test (relative to /dashboard) */
         .test-card.stress-test {
             background-image:
-                url('../images/stressed.png');
+                url('../images/stressed1.png');
         }
 
         .test-card.anxiety-test {
             background-image:
-                url('../images/anxiety.png');
+                url('../images/anxiety1.png');
         }
 
         .test-card.ocd-test {
             background-image:
-                url('../images/ocd.jpeg');
+                url('../images/ocd.png');
         }
 
         .test-card.depression-test {
             background-image:
-                url('../images/depression.jpeg');
+                url('../images/depression.png');
         }
 
         .test-info {
@@ -190,7 +196,7 @@ $recent_results = $result->fetch_all(MYSQLI_ASSOC);
             justify-content: space-between;
             align-items: center;
             padding: 12px;
-            background: white;
+            background: var(--bg-card, #F8F9F7);
             border-radius: 8px;
             margin-bottom: 8px;
             font-size: 14px;
@@ -254,7 +260,8 @@ $recent_results = $result->fetch_all(MYSQLI_ASSOC);
                 <h2 style="margin: 0; font-size: 18px; color: var(--text-primary);"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M9 11l3 3L22 4M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Mental Health Self-Assessment</h2>
                 <div class="top-bar-right">
                     <a href="notifications.php" style="text-decoration: none; color: var(--text-primary); font-weight: 600; padding: 8px 16px; background: var(--light-bg); border-radius: 8px;">
-                        🔔 Notifications
+                        <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                        Notifications
                     </a>
                 </div>
             </div>

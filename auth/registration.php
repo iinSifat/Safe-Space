@@ -122,17 +122,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($stmt->execute()) {
             $user_id = $db->getLastInsertId();
             
-            // If user is a professional, create entry in professionals table (pending verification)
+            // If user is a professional, auto-verify and create entry in professionals table.
             if ($user_type === 'professional') {
-                $stmt_prof = $conn->prepare("INSERT INTO professionals (user_id, full_name, specialization, license_number, degree, license_country, verification_status) VALUES (?, '', '', '', '', '', 'pending')");
-                $stmt_prof->bind_param("i", $user_id);
-                $stmt_prof->execute();
-                $stmt_prof->close();
+                // Mark the account verified immediately.
+                $verify_user = $conn->prepare("UPDATE users SET is_verified = 1, email_verified_at = NOW(), verification_token = NULL WHERE user_id = ?");
+                if ($verify_user) {
+                    $verify_user->bind_param('i', $user_id);
+                    $verify_user->execute();
+                    $verify_user->close();
+                }
+
+                // Ensure professional profile exists and is verified.
+                // Note: schema requires some NOT NULL fields; store safe placeholders until profile completion exists.
+                $specialization = 'General';
+                $license_number = 'PENDING';
+                $degree = 'PENDING';
+                $license_country = 'BD';
+                $is_accepting = 1;
+                $status = 'verified';
+
+                $stmt_prof = $conn->prepare("INSERT INTO professionals (user_id, full_name, specialization, license_number, degree, license_country, is_accepting_patients, verification_status, verified_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+                if ($stmt_prof) {
+                    $stmt_prof->bind_param("isssssis", $user_id, $full_name, $specialization, $license_number, $degree, $license_country, $is_accepting, $status);
+                    $stmt_prof->execute();
+                    $stmt_prof->close();
+                }
             }
             
             // Log activity
             log_activity($user_id, 'registration', "User registered as $user_type");
             
+            if ($user_type === 'professional') {
+                set_flash_message('success', 'Registration successful! Your professional account is ready.');
+                redirect('login.php');
+            }
+
             set_flash_message('success', 'Registration successful! Please check your email to verify your account.');
             redirect('login.php');
         } else {
@@ -167,18 +191,30 @@ $page_title = "Create an Account";
         .page-shell {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 26px 20px 60px;
+            /* Offset for fixed header */
+            padding: 118px 20px 60px;
         }
         header {
+            /* Full-width, tall, stable header (matches landing header structure) */
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            height: 92px;
+            background: rgba(248, 251, 255, 0.9);
+            backdrop-filter: blur(12px);
+            z-index: 50;
+        }
+        .header-inner {
+            height: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 10px 0 22px;
-            position: sticky;
-            top: 0;
-            background: rgba(248, 251, 255, 0.9);
-            backdrop-filter: blur(12px);
-            z-index: 10;
+            gap: 18px;
         }
         .brand {
             display: flex;
@@ -186,12 +222,34 @@ $page_title = "Create an Account";
             gap: 12px;
             font-weight: 700;
             font-size: 20px;
-            color: var(--text);
+            color: var(--text, #0c1b33);
             text-decoration: none;
         }
         nav { display: flex; align-items: center; gap: 30px; }
-        nav a { color: var(--muted); text-decoration: none; font-weight: 600; font-size: 15px; transition: color 0.2s; }
-        nav a:hover { color: var(--text); }
+        nav a { color: var(--muted, #5a6b8a); text-decoration: none; font-weight: 600; font-size: 15px; transition: color 0.2s; }
+        nav a:hover { color: var(--text, #0c1b33); }
+        .nav-actions { display: flex; align-items: center; gap: 12px; }
+        .header-btn {
+            border: 0;
+            cursor: pointer;
+            border-radius: 14px;
+            font-weight: 700;
+            font-size: 15px;
+            padding: 12px 18px;
+            text-decoration: none;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+        }
+        .header-btn-ghost { background: transparent; color: var(--text, #0c1b33); }
+        .header-btn-primary {
+            background: linear-gradient(135deg, var(--primary, #14b8a6), #3ad0be);
+            color: white;
+            box-shadow: 0 12px 30px rgba(20, 184, 166, 0.35);
+        }
+        .header-btn:hover { transform: translateY(-2px); }
         .auth-container {
             display: flex;
             justify-content: center;
@@ -199,29 +257,42 @@ $page_title = "Create an Account";
             min-height: calc(100vh - 200px);
             padding: 40px 0;
         }
-        .auth-card {\n            background: rgba(255, 255, 255, 0.95);\n            border: 1px solid rgba(12, 27, 51, 0.05);\n            border-radius: 24px;\n            padding: 40px;\n            box-shadow: 0 18px 40px rgba(12, 27, 51, 0.08);\n            width: 100%;\n            max-width: 480px;\n        }\n        .auth-header {\n            text-align: center;\n            margin-bottom: 32px;\n        }\n        .auth-header h1 {\n            font-size: 32px;\n            margin: 0 0 8px;\n            font-weight: 800;\n            color: var(--text);\n        }\n        .auth-header p {\n            color: var(--muted);\n            margin: 0;\n            font-size: 16px;\n        }\n        .btn {\n            border: 0;\n            cursor: pointer;\n            border-radius: 14px;\n            font-weight: 700;\n            font-size: 15px;\n            padding: 14px 18px;\n            text-decoration: none;\n            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;\n            width: 100%;\n            display: block;\n            text-align: center;\n        }\n        .btn-primary {\n            background: linear-gradient(135deg, var(--primary), #3ad0be);\n            color: white;\n            box-shadow: 0 12px 30px rgba(20, 184, 166, 0.35);\n        }\n        .btn-primary:hover { transform: translateY(-2px); }\n        .text-link {\n            color: var(--primary-dark);\n            text-decoration: none;\n            font-weight: 600;\n        }\n        .text-link:hover { text-decoration: underline; }\n        .role-selection { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 24px; }\n        .role-card { \n            background: white; \n            border: 2px solid rgba(20, 184, 166, 0.15); \n            border-radius: 16px; \n            padding: 20px; \n            cursor: pointer; \n            transition: all 0.2s ease;\n            text-align: center;\n        }\n        .role-card:hover { \n            border-color: var(--primary); \n            box-shadow: 0 8px 20px rgba(20, 184, 166, 0.15);\n            transform: translateY(-2px);\n        }\n        .role-card.active { \n            border-color: var(--primary); \n            background: rgba(20, 184, 166, 0.05);\n            box-shadow: 0 8px 20px rgba(20, 184, 166, 0.15);\n        }\n        .role-icon svg { width: 32px; height: 32px; fill: var(--primary); margin-bottom: 8px; }\n        .role-title { font-weight: 700; color: var(--text); margin-bottom: 4px; }\n        .role-description { color: var(--muted); font-size: 0.9rem; }\n        @media (max-width: 768px) {\n            header { position: static; flex-wrap: wrap; gap: 12px; }\n            nav { width: 100%; justify-content: center; }\n            .auth-card { padding: 28px; }\n        }        .page-header { text-align: center; margin-bottom: 24px; }
+        .auth-card {\n            background: rgba(255, 255, 255, 0.95);\n            border: 1px solid rgba(12, 27, 51, 0.05);\n            border-radius: 24px;\n            padding: 40px;\n            box-shadow: 0 18px 40px rgba(12, 27, 51, 0.08);\n            width: 100%;\n            max-width: 480px;\n        }\n        .auth-header {\n            text-align: center;\n            margin-bottom: 32px;\n        }\n        .auth-header h1 {\n            font-size: 32px;\n            margin: 0 0 8px;\n            font-weight: 800;\n            color: var(--text);\n        }\n        .auth-header p {\n            color: var(--muted);\n            margin: 0;\n            font-size: 16px;\n        }\n        .btn {\n            border: 0;\n            cursor: pointer;\n            border-radius: 14px;\n            font-weight: 700;\n            font-size: 15px;\n            padding: 14px 18px;\n            text-decoration: none;\n            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;\n            width: 100%;\n            display: block;\n            text-align: center;\n        }\n        .btn-primary {\n            background: linear-gradient(135deg, var(--primary), #3ad0be);\n            color: white;\n            box-shadow: 0 12px 30px rgba(20, 184, 166, 0.35);\n        }\n        .btn-primary:hover { transform: translateY(-2px); }\n        .text-link {\n            color: var(--primary-dark);\n            text-decoration: none;\n            font-weight: 600;\n        }\n        .text-link:hover { text-decoration: underline; }\n        .role-selection { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 24px; }\n        .role-card { \n            background: var(--bg-card, #F8F9F7); \n            border: 2px solid var(--border-soft, #D8E2DD); \n            border-radius: 16px; \n            padding: 20px; \n            cursor: pointer; \n            transition: all 0.2s ease;\n            text-align: center;\n        }\n        .role-card:hover { \n            border-color: var(--accent-primary, #7FAFA3); \n            box-shadow: 0 8px 20px rgba(127, 175, 163, 0.15);\n            transform: translateY(-2px);\n        }\n        .role-card.active { \n            border-color: var(--accent-primary, #7FAFA3); \n            background: rgba(127, 175, 163, 0.08);\n            box-shadow: 0 8px 20px rgba(127, 175, 163, 0.15);\n        }\n        .role-icon svg { width: 32px; height: 32px; fill: var(--primary); margin-bottom: 8px; }\n        .role-title { font-weight: 700; color: var(--text); margin-bottom: 4px; }\n        .role-description { color: var(--muted); font-size: 0.9rem; }\n        @media (max-width: 768px) {\n            header { position: static; flex-wrap: wrap; gap: 12px; }\n            nav { width: 100%; justify-content: center; }\n            .auth-card { padding: 28px; }\n        }        .page-header { text-align: center; margin-bottom: 24px; }
         .page-header h1 { font-weight: 800; margin: 0; }
         .page-header p { color: var(--text-secondary); margin-top: 8px; }
         .role-selection { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-        .role-card { background: white; border: 2px solid var(--light-gray); border-radius: 16px; padding: 16px; cursor: pointer; transition: all var(--transition-fast); }
-        .role-card.active, .role-card:hover { border-color: var(--primary-color); box-shadow: var(--shadow-sm); }
+        .role-card { background: var(--bg-card, #F8F9F7); border: 2px solid var(--border-soft, #D8E2DD); border-radius: 16px; padding: 16px; cursor: pointer; transition: all var(--transition-fast); }
+        .role-card.active, .role-card:hover { border-color: var(--accent-primary, #7FAFA3); box-shadow: var(--shadow-sm); }
         .role-title { font-weight: 700; }
         .role-description { color: var(--text-secondary); font-size: 0.9rem; }
+
+        /* Override legacy mobile header rules (keeps updated header fixed) */
+        @media (max-width: 768px) {
+            header { position: fixed; height: 92px; }
+            .header-inner { flex-wrap: wrap; justify-content: center; row-gap: 10px; padding: 10px 16px; }
+            nav { width: 100%; justify-content: center; }
+            .nav-actions { width: 100%; justify-content: center; }
+        }
     </style>
 </head>
 <body>
     <div class="page-shell">
         <header>
-            <a class="brand" href="<?php echo is_logged_in() ? '../dashboard/index.php' : '../index.php'; ?>">
-                <img src="../images/logo.png" alt="Safe Space" style="width: 40px; height: 40px; border-radius: 12px;">
-                Safe Space
-            </a>
-            <nav>
-                <a href="../index.php#features">Features</a>
-                <a href="../index.php#about">About</a>
-                <a href="../index.php#stories">Stories</a>
-                <a href="login.php" class="text-link">Sign In</a>
-            </nav>
+            <div class="header-inner">
+                <a class="brand" href="<?php echo is_logged_in() ? '../dashboard/index.php' : '../index.php'; ?>">
+                    <img src="../images/logo.png" alt="Safe Space" style="width: 40px; height: 40px; border-radius: 12px;">
+                    Safe Space
+                </a>
+                <nav>
+                    <a href="../index.php#features">Features</a>
+                    <a href="../index.php#about">About</a>
+                    <a href="../index.php#stories">Stories</a>
+                </nav>
+                <div class="nav-actions">
+                    <a class="header-btn header-btn-ghost" href="login.php">Sign In</a>
+                    <a class="header-btn header-btn-primary" href="registration.php" aria-current="page">Get Started</a>
+                </div>
+            </div>
         </header>
 
         <div class="auth-container">

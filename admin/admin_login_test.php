@@ -14,18 +14,18 @@ $warnings = [];
 try {
     $db = Database::getInstance();
     $conn = $db->getConnection();
-    $diagnostics[] = "✅ Database connection successful";
+    $diagnostics[] = "OK: Database connection successful";
 } catch (Exception $e) {
-    $errors[] = "❌ Database connection failed: " . $e->getMessage();
+    $errors[] = "ERROR: Database connection failed: " . $e->getMessage();
 }
 
 // Test 2: Check if admins table exists
 if (isset($conn)) {
     $result = $conn->query("SHOW TABLES LIKE 'admins'");
     if ($result && $result->num_rows > 0) {
-        $diagnostics[] = "✅ Admins table exists";
+        $diagnostics[] = "OK: Admins table exists";
     } else {
-        $errors[] = "❌ Admins table not found in database";
+        $errors[] = "ERROR: Admins table not found in database";
     }
 }
 
@@ -37,30 +37,30 @@ if (isset($conn)) {
     
     if ($result->num_rows > 0) {
         $admin = $result->fetch_assoc();
-        $diagnostics[] = "✅ Admin user 'admin' exists in database";
+        $diagnostics[] = "OK: Admin user 'admin' exists in database";
         
         // Check if admin is active
         if ($admin['is_active']) {
-            $diagnostics[] = "✅ Admin account is ACTIVE";
+            $diagnostics[] = "OK: Admin account is ACTIVE";
         } else {
-            $errors[] = "❌ Admin account is DEACTIVATED";
+            $errors[] = "ERROR: Admin account is DEACTIVATED";
         }
         
         // Test password verification
         $test_password = 'Admin@123';
         if (verify_password($test_password, $admin['password_hash'])) {
-            $diagnostics[] = "✅ Password 'Admin@123' matches admin hash";
+            $diagnostics[] = "OK: Password 'Admin@123' matches admin hash";
         } else {
-            $errors[] = "❌ Password 'Admin@123' does NOT match admin hash";
+            $errors[] = "ERROR: Password 'Admin@123' does NOT match admin hash";
             
             // Show hash info
-            $diagnostics[] = "ℹ️ Admin password hash: " . $admin['password_hash'];
-            $diagnostics[] = "ℹ️ Hash algorithm: " . substr($admin['password_hash'], 0, 4);
-            $diagnostics[] = "ℹ️ Hash length: " . strlen($admin['password_hash']);
+            $diagnostics[] = "INFO: Admin password hash: " . $admin['password_hash'];
+            $diagnostics[] = "INFO: Hash algorithm: " . substr($admin['password_hash'], 0, 4);
+            $diagnostics[] = "INFO: Hash length: " . strlen($admin['password_hash']);
         }
     } else {
-        $errors[] = "❌ Admin user 'admin' not found in database";
-        $diagnostics[] = "ℹ️ Available admins:";
+        $errors[] = "ERROR: Admin user 'admin' not found in database";
+        $diagnostics[] = "INFO: Available admins:";
         
         $all_admins = $conn->query("SELECT admin_id, username, email, role, is_active FROM admins");
         if ($all_admins && $all_admins->num_rows > 0) {
@@ -75,28 +75,28 @@ if (isset($conn)) {
 }
 
 // Test 4: Check config file
-$diagnostics[] = "ℹ️ Database: " . DB_NAME;
-$diagnostics[] = "ℹ️ Host: " . DB_HOST;
-$diagnostics[] = "ℹ️ User: " . DB_USER;
+$diagnostics[] = "INFO: Database: " . DB_NAME;
+$diagnostics[] = "INFO: Host: " . DB_HOST;
+$diagnostics[] = "INFO: User: " . DB_USER;
 
 // Test 5: Session check
 if (session_status() === PHP_SESSION_ACTIVE) {
-    $diagnostics[] = "✅ Session is active";
+    $diagnostics[] = "OK: Session is active";
 } else {
-    $warnings[] = "⚠️ Session is not active";
+    $warnings[] = "WARN: Session is not active";
 }
 
 // Test 6: Functions check
 if (function_exists('verify_password')) {
-    $diagnostics[] = "✅ verify_password() function exists";
+    $diagnostics[] = "OK: verify_password() function exists";
 } else {
-    $errors[] = "❌ verify_password() function not found";
+    $errors[] = "ERROR: verify_password() function not found";
 }
 
 if (function_exists('hash_password')) {
-    $diagnostics[] = "✅ hash_password() function exists";
+    $diagnostics[] = "OK: hash_password() function exists";
 } else {
-    $errors[] = "❌ hash_password() function not found";
+    $errors[] = "ERROR: hash_password() function not found";
 }
 
 ?>
@@ -163,9 +163,9 @@ if (function_exists('hash_password')) {
             margin: 0.5rem 0;
             font-family: 'Courier New', monospace;
             font-size: 0.95rem;
-            background: white;
+            background: var(--bg-card, #F8F9F7);
             border-radius: 4px;
-            border-left: 3px solid #ddd;
+            border-left: 3px solid var(--border-soft, #D8E2DD);
         }
         
         .diagnostic-item.error {
@@ -275,14 +275,14 @@ if (function_exists('hash_password')) {
     <div class="diagnostic-container">
         <!-- Header -->
         <div class="diagnostic-header">
-            <h1>🔍 Admin Login Diagnostic</h1>
+            <h1><svg class="icon icon--md" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Admin Login Diagnostic</h1>
             <p>System health check and troubleshooting</p>
         </div>
 
         <!-- Errors Section -->
         <?php if (!empty($errors)): ?>
             <div class="section">
-                <div class="section-title">❌ Critical Errors</div>
+                <div class="section-title"><svg class="icon icon--sm" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg> Critical Errors</div>
                 <?php foreach ($errors as $error): ?>
                     <div class="diagnostic-item error"><?php echo htmlspecialchars($error); ?></div>
                 <?php endforeach; ?>
@@ -292,7 +292,7 @@ if (function_exists('hash_password')) {
         <!-- Warnings Section -->
         <?php if (!empty($warnings)): ?>
             <div class="section">
-                <div class="section-title">⚠️ Warnings</div>
+                <div class="section-title"><svg class="icon icon--sm" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> Warnings</div>
                 <?php foreach ($warnings as $warning): ?>
                     <div class="diagnostic-item warning"><?php echo htmlspecialchars($warning); ?></div>
                 <?php endforeach; ?>
@@ -301,14 +301,14 @@ if (function_exists('hash_password')) {
 
         <!-- Diagnostics Section -->
         <div class="section">
-            <div class="section-title">ℹ️ System Diagnostics</div>
+            <div class="section-title"><svg class="icon icon--sm" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> System Diagnostics</div>
             <?php foreach ($diagnostics as $diagnostic): ?>
                 <?php
-                    if (strpos($diagnostic, '✅') === 0) {
+                    if (strpos($diagnostic, 'OK:') === 0) {
                         $class = 'success';
-                    } elseif (strpos($diagnostic, '❌') === 0) {
+                    } elseif (strpos($diagnostic, 'ERROR:') === 0) {
                         $class = 'error';
-                    } elseif (strpos($diagnostic, 'ℹ️') === 0) {
+                    } elseif (strpos($diagnostic, 'INFO:') === 0) {
                         $class = 'info';
                     } else {
                         $class = 'info';
@@ -321,16 +321,16 @@ if (function_exists('hash_password')) {
         <!-- Status Summary -->
         <div style="text-align: center; margin-top: 2rem;">
             <?php if (empty($errors)): ?>
-                <span class="status-badge ok">✅ All Systems Operational</span>
+                <span class="status-badge ok"><svg class="icon icon--sm" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg> All Systems Operational</span>
             <?php else: ?>
-                <span class="status-badge error">❌ Issues Detected</span>
+                <span class="status-badge error"><svg class="icon icon--sm" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg> Issues Detected</span>
             <?php endif; ?>
         </div>
 
         <!-- Fix Guide if errors -->
         <?php if (!empty($errors)): ?>
             <div class="fix-guide">
-                <h3>🔧 How to Fix Admin Login Issues</h3>
+                <h3><svg class="icon icon--sm" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l4.1-4.1a6 6 0 0 1-7.5 7.5l-7.8 7.8a2 2 0 0 1-2.8 0l-.7-.7a2 2 0 0 1 0-2.8l7.8-7.8a6 6 0 0 1 7.5-7.5z"/></svg> How to Fix Admin Login Issues</h3>
                 <ol>
                     <li><strong>Reset Database:</strong>
                         <ul>

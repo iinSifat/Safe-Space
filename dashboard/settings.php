@@ -21,6 +21,8 @@ $user_stmt->close();
 $message = '';
 $error = '';
 
+$is_professional_user = (($user['user_type'] ?? '') === 'professional');
+
 // Handle privacy settings
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_settings'])) {
     $is_anonymous = isset($_POST['is_anonymous']) ? 1 : 0;
@@ -28,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_settings'])) {
     $update_stmt = $conn->prepare("UPDATE users SET is_anonymous = ? WHERE user_id = ?");
     $update_stmt->bind_param("ii", $is_anonymous, $user_id);
     if ($update_stmt->execute()) {
-        $message = "✓ Settings updated successfully!";
+        $message = "Settings updated successfully!";
         $user['is_anonymous'] = $is_anonymous;
     }
     $update_stmt->close();
@@ -51,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         $update_stmt = $conn->prepare("UPDATE users SET password_hash = ? WHERE user_id = ?");
         $update_stmt->bind_param("si", $hashed_pass, $user_id);
         if ($update_stmt->execute()) {
-            $message = "✓ Password changed successfully!";
+            $message = "Password changed successfully!";
         }
         $update_stmt->close();
     }
@@ -82,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         }
 
         .settings-card {
-            background: white;
+            background: var(--bg-card, #F8F9F7);
             padding: 2rem;
             border-radius: var(--radius-lg);
             margin-bottom: 2rem;
@@ -135,6 +137,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         }
 
         .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid var(--light-gray);
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+        }
+
+        .form-group textarea,
+        .form-group select {
             width: 100%;
             padding: 10px;
             border: 2px solid var(--light-gray);
@@ -196,7 +207,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
                 <h2 style="margin: 0; font-size: 18px; color: var(--text-primary);">Settings</h2>
                 <div class="top-bar-right">
                     <a href="notifications.php" style="text-decoration: none; color: var(--text-primary); font-weight: 600; padding: 8px 16px; background: var(--light-bg); border-radius: 8px; display: flex; align-items: center; gap: 8px;">
-                        🔔 Notifications
+                        <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                        Notifications
                     </a>
                 </div>
             </div>
@@ -219,7 +231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
 
                     <!-- Privacy & Anonymity Settings -->
                     <div class="settings-card">
-                        <div class="card-title">🔒 Privacy & Anonymity</div>
+                        <div class="card-title"><svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right: 8px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Privacy & Anonymity</div>
                         
                         <form method="POST" action="">
                             <div class="setting-group">
@@ -267,7 +279,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
 
                     <!-- Change Password -->
                     <div class="settings-card">
-                        <div class="card-title">🔐 Change Password</div>
+                        <div class="card-title"><svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right: 8px;"><path d="M21 2l-2 2"/><path d="M7.61 10.61a5.5 5.5 0 1 0 7.78 7.78 5.5 5.5 0 0 0-7.78-7.78z"/><path d="M15.5 7.5L22 1"/><path d="M16 2l6 6"/></svg>Change Password</div>
                         
                         <form method="POST" action="">
                             <div class="form-group">

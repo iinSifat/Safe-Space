@@ -15,14 +15,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $decision = sanitize_input($_POST['decision'] ?? ''); // approve|decline
     $notes = sanitize_input($_POST['admin_notes'] ?? '');
 
-    // Fetch application
-    $stmt = $conn->prepare("SELECT * FROM volunteer_applications WHERE application_id = ?");
+    // Updated by Shuvo - START
+    // Fetch application with account identity (source-of-truth).
+    $stmt = $conn->prepare("SELECT va.*, u.email, u.full_name AS account_full_name, u.username AS account_username FROM volunteer_applications va JOIN users u ON va.user_id = u.user_id WHERE va.application_id = ?");
+    // Updated by Shuvo - END
     $stmt->bind_param("i", $app_id);
     $stmt->execute();
     $app = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
     if ($app) {
+        // Updated by Shuvo - START
+        $vol_full_name = trim((string)($app['account_full_name'] ?? ''));
+        if ($vol_full_name === '') {
+            $vol_full_name = (string)($app['account_username'] ?? $app['full_name'] ?? '');
+        }
+        // Updated by Shuvo - END
         if ($decision === 'approve') {
             $upd = $conn->prepare("UPDATE volunteer_applications SET status='approved', admin_notes=?, reviewed_by=?, approved_at=NOW() WHERE application_id=?");
             $admin_id = get_admin_id();
@@ -39,12 +47,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $check->close();
             if ($exists) {
                 $vupd = $conn->prepare("UPDATE volunteers SET full_name=?, approval_status='approved', is_active_volunteer=TRUE, approved_at=NOW(), approved_by=? WHERE user_id = ?");
-                $vupd->bind_param("sii", $app['full_name'], $admin_id, $app['user_id']);
+                // Updated by Shuvo - START
+                $vupd->bind_param("sii", $vol_full_name, $admin_id, $app['user_id']);
+                // Updated by Shuvo - END
                 $vupd->execute();
                 $vupd->close();
             } else {
                 $vins = $conn->prepare("INSERT INTO volunteers (user_id, full_name, approval_status, is_active_volunteer, approved_at, approved_by) VALUES (?, ?, 'approved', TRUE, NOW(), ?)");
-                $vins->bind_param("isi", $app['user_id'], $app['full_name'], $admin_id);
+                // Updated by Shuvo - START
+                $vins->bind_param("isi", $app['user_id'], $vol_full_name, $admin_id);
+                // Updated by Shuvo - END
                 $vins->execute();
                 $vins->close();
             }
@@ -65,7 +77,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // List applications
 $status_filter = sanitize_input($_GET['status'] ?? 'pending');
-$stmt = $conn->prepare("SELECT va.*, u.email FROM volunteer_applications va JOIN users u ON va.user_id = u.user_id WHERE va.status = ? ORDER BY submitted_at DESC");
+// Updated by Shuvo - START
+$stmt = $conn->prepare("SELECT va.*, u.email, u.full_name AS account_full_name, u.username AS account_username FROM volunteer_applications va JOIN users u ON va.user_id = u.user_id WHERE va.status = ? ORDER BY submitted_at DESC");
+// Updated by Shuvo - END
 $stmt->bind_param("s", $status_filter);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -82,12 +96,12 @@ $stmt->close();
     <link rel="stylesheet" href="../assets/css/styles.css">
     <style>
         .page { max-width: 1100px; margin: 40px auto; padding: 0 16px; }
-        .card { background: #fff; border-radius: 20px; padding: 24px; box-shadow: var(--shadow-sm); }
+        .card { background: var(--bg-card, #F8F9F7); border-radius: 20px; padding: 24px; box-shadow: var(--shadow-sm); }
         .list { margin-top: 16px; }
-        .item { padding: 16px; border: 1px solid var(--light-gray); border-radius: 12px; margin-bottom: 12px; }
+        .item { padding: 16px; border: 1px solid var(--border-soft, #D8E2DD); border-radius: 12px; margin-bottom: 12px; }
         .item h3 { margin: 0 0 8px; }
         .docs { display:flex; flex-wrap:wrap; gap:8px; }
-        .badge { background: rgba(20,184,166,0.12); color: var(--primary-dark); padding: 6px 10px; border-radius: 12px; font-weight: 700; font-size: 0.8rem; }
+        .badge { background: rgba(127, 175, 163, 0.18); color: var(--text-primary); padding: 6px 10px; border-radius: 12px; font-weight: 700; font-size: 0.8rem; }
         .actions { display:flex; gap:8px; margin-top: 8px; }
         .filter { margin-bottom: 12px; }
         .note { color: var(--text-secondary); font-size: 0.9rem; }
@@ -114,8 +128,18 @@ $stmt->close();
                     <p class="note">No applications found.</p>
                 <?php else: ?>
                     <?php foreach ($applications as $app): ?>
+                        <?php // Updated by Shuvo - START ?>
+                        <?php
+                            $display_name = trim((string)($app['account_full_name'] ?? ''));
+                            if ($display_name === '') {
+                                $display_name = (string)($app['account_username'] ?? $app['full_name'] ?? '');
+                            }
+                        ?>
+                        <?php // Updated by Shuvo - END ?>
                         <div class="item">
-                            <h3><?php echo htmlspecialchars($app['full_name']); ?> <span class="badge"><?php echo htmlspecialchars(ucfirst($app['status'])); ?></span></h3>
+                            <!-- Updated by Shuvo - START -->
+                            <h3><?php echo htmlspecialchars($display_name); ?> <span class="badge"><?php echo htmlspecialchars(ucfirst($app['status'])); ?></span></h3>
+                            <!-- Updated by Shuvo - END -->
                             <div class="note">Submitted: <?php echo date('M j, Y H:i', strtotime($app['submitted_at'])); ?> • Email: <?php echo htmlspecialchars($app['email']); ?></div>
                             <p><strong>Education:</strong> <?php echo nl2br(htmlspecialchars($app['education'])); ?></p>
                             <p><strong>Training / Certifications:</strong> <?php echo nl2br(htmlspecialchars($app['training_certifications'])); ?></p>

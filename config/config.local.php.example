@@ -1,0 +1,15 @@
+<?php
+/**
+ * Local (developer machine) overrides.
+ *
+ * Copy this file to `config.local.php` and fill in the values.
+ * This keeps secrets out of `config.php`.
+ */
+
+return [
+    // Your MySQL settings (do NOT change the database; just match its existing credentials)
+    'DB_HOST' => 'localhost',
+    'DB_USER' => 'root',
+    'DB_PASS' => 'YOUR_MYSQL_PASSWORD_HERE',
+    'DB_NAME' => 'safe_space_db',
+];

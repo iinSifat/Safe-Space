@@ -11,43 +11,140 @@ $user_id = get_user_id();
 $db = Database::getInstance();
 $conn = $db->getConnection();
 
-// Updated by Shuvo - START
-// Sample professionals (in a real app, these would be from database)
-$professionals = [
-    [
-        'id' => 1,
-        'name' => 'Dr. Sarah Johnson',
-        'specialization' => 'Depression & Anxiety',
-        'rating' => 4.8,
-        'fee' => 500,
-        'verified' => true
-    ],
-    [
-        'id' => 2,
-        'name' => 'Dr. Michael Chen',
-        'specialization' => 'Trauma & PTSD',
-        'rating' => 4.9,
-        'fee' => 1000,
-        'verified' => true
-    ],
-    [
-        'id' => 3,
-        'name' => 'Dr. Emma Rodriguez',
-        'specialization' => 'Relationship Issues',
-        'rating' => 4.7,
-        'fee' => 800,
-        'verified' => true
-    ],
-    [
-        'id' => 4,
-        'name' => 'Dr. James Williams',
-        'specialization' => 'Work Stress & Burnout',
-        'rating' => 4.6,
-        'fee' => 400,
-        'verified' => true
-    ]
-];
-// Updated by Shuvo - END
+$is_professional_user = function_exists('is_professional') && is_professional();
+if (function_exists('ensure_professional_sessions_table')) {
+    ensure_professional_sessions_table();
+}
+
+$is_emergency_mode = (!$is_professional_user && isset($_GET['emergency']) && (string)$_GET['emergency'] === '1');
+
+// Client -> request a session with a professional (creates a request record).
+if (!$is_professional_user && isset($_GET['request_session'])) {
+    $pro_user_id = (int)($_GET['request_session'] ?? 0);
+    if ($pro_user_id > 0) {
+        $check = $conn->prepare("SELECT is_accepting_patients FROM professionals WHERE user_id = ? LIMIT 1");
+        $check->bind_param('i', $pro_user_id);
+        $check->execute();
+        $row = $check->get_result()->fetch_assoc();
+        $check->close();
+
+        $accepting = (int)($row['is_accepting_patients'] ?? 0);
+        if ($accepting !== 1) {
+            set_flash_message('error', 'This professional is not currently accepting new clients.');
+            redirect('professionals.php');
+        }
+
+        $alias = function_exists('professional_client_alias') ? professional_client_alias((int)$user_id) : ('Client-' . (int)$user_id);
+        $insert = $conn->prepare("INSERT INTO professional_sessions (professional_user_id, client_user_id, client_alias, status) VALUES (?, ?, ?, 'requested')");
+        if ($insert) {
+            $insert->bind_param('iis', $pro_user_id, $user_id, $alias);
+            $insert->execute();
+            $insert->close();
+        }
+
+        set_flash_message('success', 'Session request submitted. The professional will review it.');
+        redirect('professionals.php');
+    }
+}
+
+// Client -> request emergency help from a professional (creates a critical request record).
+if (!$is_professional_user && isset($_GET['request_emergency'])) {
+    $pro_user_id = (int)($_GET['request_emergency'] ?? 0);
+    if ($pro_user_id > 0) {
+        $check = $conn->prepare("SELECT is_accepting_patients FROM professionals WHERE user_id = ? LIMIT 1");
+        $check->bind_param('i', $pro_user_id);
+        $check->execute();
+        $row = $check->get_result()->fetch_assoc();
+        $check->close();
+
+        $accepting = (int)($row['is_accepting_patients'] ?? 0);
+        if ($accepting !== 1) {
+            set_flash_message('error', 'This professional is not currently accepting new clients.');
+            redirect('professionals.php?emergency=1');
+        }
+
+        $alias = function_exists('professional_client_alias') ? professional_client_alias((int)$user_id) : ('Client-' . (int)$user_id);
+        $primary_concern = 'Emergency support request';
+        $risk_level = 'critical';
+        $is_emergency = 1;
+
+        $insert = $conn->prepare("INSERT INTO professional_sessions (professional_user_id, client_user_id, client_alias, status, primary_concern, risk_level, is_emergency) VALUES (?, ?, ?, 'requested', ?, ?, ?)");
+        if ($insert) {
+            $insert->bind_param('iisssi', $pro_user_id, $user_id, $alias, $primary_concern, $risk_level, $is_emergency);
+            $insert->execute();
+            $insert->close();
+        }
+
+        set_flash_message('success', 'Emergency request submitted. If you are in immediate danger, call your local emergency number now.');
+        redirect('professionals.php?emergency=1');
+    }
+}
+
+// Professional -> session workflow actions (accept/decline/complete/cancel/no-show)
+if ($is_professional_user && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['session_action'], $_POST['session_id'])) {
+    $session_id = (int)($_POST['session_id'] ?? 0);
+    $action = (string)($_POST['session_action'] ?? '');
+
+    if ($session_id > 0) {
+        $allowed = ['accept', 'decline', 'complete', 'cancel', 'no_show', 'update_notes'];
+        if (in_array($action, $allowed, true)) {
+            if ($action === 'update_notes') {
+                $private_notes = sanitize_input($_POST['private_notes'] ?? '');
+                $risk_assessment = sanitize_input($_POST['risk_assessment'] ?? 'low');
+                $follow_up_required = isset($_POST['follow_up_required']) ? 1 : 0;
+                $scheduled_at = trim((string)($_POST['scheduled_at'] ?? ''));
+                $scheduled_at_val = ($scheduled_at !== '') ? date('Y-m-d H:i:s', strtotime($scheduled_at)) : null;
+
+                $upd = $conn->prepare("UPDATE professional_sessions SET private_notes = ?, risk_assessment = ?, follow_up_required = ?, scheduled_at = COALESCE(?, scheduled_at) WHERE session_id = ? AND professional_user_id = ?");
+                if ($upd) {
+                    $upd->bind_param('ssisii', $private_notes, $risk_assessment, $follow_up_required, $scheduled_at_val, $session_id, $user_id);
+                    $upd->execute();
+                    $upd->close();
+                    set_flash_message('success', 'Session notes updated.');
+                }
+            } else {
+                $map = [
+                    'accept' => 'accepted',
+                    'decline' => 'declined',
+                    'complete' => 'completed',
+                    'cancel' => 'cancelled',
+                    'no_show' => 'no_show'
+                ];
+                $new_status = $map[$action] ?? null;
+                if ($new_status) {
+                    $upd = $conn->prepare("UPDATE professional_sessions SET status = ? WHERE session_id = ? AND professional_user_id = ?");
+                    if ($upd) {
+                        $upd->bind_param('sii', $new_status, $session_id, $user_id);
+                        $upd->execute();
+                        $upd->close();
+                        set_flash_message('success', 'Session updated.');
+                    }
+                }
+            }
+        }
+    }
+    redirect('professionals.php');
+}
+
+// Database-backed professionals
+$professionals = [];
+$prof_stmt = $conn->prepare("SELECT p.user_id AS id, p.full_name AS name, p.specialization, p.consultation_fee AS fee, p.verification_status, p.is_accepting_patients FROM professionals p JOIN users u ON u.user_id = p.user_id WHERE u.user_type = 'professional' AND u.is_active = 1 ORDER BY (p.verification_status = 'verified') DESC, p.full_name ASC");
+if ($prof_stmt) {
+    $prof_stmt->execute();
+    $res = $prof_stmt->get_result();
+    while ($row = $res->fetch_assoc()) {
+        $professionals[] = [
+            'id' => (int)($row['id'] ?? 0),
+            'name' => (string)($row['name'] ?? ''),
+            'specialization' => (string)($row['specialization'] ?? ''),
+            'rating' => 0,
+            'fee' => (float)($row['fee'] ?? 0),
+            'verified' => (($row['verification_status'] ?? '') === 'verified'),
+            'is_accepting_patients' => ((int)($row['is_accepting_patients'] ?? 0) === 1)
+        ];
+    }
+    $prof_stmt->close();
+}
 
 // Keep full list for client-side suggestions/live filtering
 $all_professionals = $professionals;
@@ -80,6 +177,26 @@ if ($q !== '' || ($spec !== '' && $spec !== 'All Specializations')) {
 
     $professionals = $filtered;
 }
+
+    // Professional workspace: fetch your session queue (shown using existing card styles)
+    $my_session_requests = [];
+    $my_upcoming_sessions = [];
+    if ($is_professional_user) {
+        $req_stmt = $conn->prepare("SELECT session_id, client_alias, primary_concern, risk_level, preferred_session_type, preferred_duration_minutes, is_emergency, scheduled_at, status, private_notes, risk_assessment, follow_up_required, created_at FROM professional_sessions WHERE professional_user_id = ? AND status IN ('requested','accepted') ORDER BY (status='requested') DESC, COALESCE(scheduled_at, created_at) ASC LIMIT 20");
+        if ($req_stmt) {
+            $req_stmt->bind_param('i', $user_id);
+            $req_stmt->execute();
+            $rows = $req_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            foreach ($rows as $r) {
+                if (($r['status'] ?? '') === 'requested') {
+                    $my_session_requests[] = $r;
+                } else {
+                    $my_upcoming_sessions[] = $r;
+                }
+            }
+            $req_stmt->close();
+        }
+    }
 
 ?>
 <!DOCTYPE html>
@@ -134,7 +251,7 @@ if ($q !== '' || ($spec !== '' && $spec !== 'All Specializations')) {
         }
 
         .professional-card {
-            background: white;
+            background: var(--bg-card, #F8F9F7);
             border-radius: var(--radius-lg);
             padding: 2rem;
             box-shadow: var(--shadow-sm);
@@ -239,8 +356,8 @@ if ($q !== '' || ($spec !== '' && $spec !== 'All Specializations')) {
         /* Search suggestions (ported from DBMS) */
         .suggestions-list {
             position: absolute;
-            background: white;
-            border: 1px solid var(--light-gray);
+            background: var(--bg-card, #F8F9F7);
+            border: 1px solid var(--border-soft, #D8E2DD);
             border-radius: 8px;
             box-shadow: var(--shadow-sm);
             top: calc(100% + 6px);
@@ -278,38 +395,156 @@ if ($q !== '' || ($spec !== '' && $spec !== 'All Specializations')) {
         
             <main class="main-content">
                 <div class="top-bar">
-                    <h2 style="margin: 0; font-size: 18px; color: var(--text-primary);"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/></svg>Find Professionals</h2>
+                    <h2 style="margin: 0; font-size: 18px; color: var(--text-primary);"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 8px; vertical-align: middle;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/></svg><?php echo $is_professional_user ? 'Session Workspace' : 'Find Professionals'; ?></h2>
                     <div class="top-bar-right">
                         <a href="notifications.php" style="text-decoration: none; color: var(--text-primary); font-weight: 600; padding: 8px 16px; background: var(--light-bg); border-radius: 8px;">
-                            🔔 Notifications
+                            <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                            Notifications
                         </a>
                     </div>
                 </div>
             
                 <div class="content-area">
     <div class="professionals-container">
-        <!-- Header -->
-        <div class="header">
-            <h1><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 12px; vertical-align: middle;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/></svg>Mental Health Professionals</h1>
-            <p>Connect with verified, licensed mental health professionals for personalized support</p>
-        </div>
-
-        <!-- Search & Filters -->
-        <form class="filters" method="GET" action="professionals.php">
-            <div class="search-wrap" style="position: relative; flex:1;">
-                <input id="prof-search" type="text" name="q" class="filter-input" placeholder="Search by name or specialization..." autocomplete="off" value="<?php echo htmlspecialchars($q ?? ''); ?>">
-                <div id="suggestions" class="suggestions-list" style="display:none;"></div>
+        <?php if (!$is_professional_user): ?>
+            <!-- Header -->
+            <div class="header">
+                <h1><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline-block; margin-right: 12px; vertical-align: middle;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z"/></svg>Mental Health Professionals</h1>
+                <?php if ($is_emergency_mode): ?>
+                    <p>If you are in immediate danger, call your local emergency number now. You can request urgent support below.</p>
+                <?php else: ?>
+                    <p>Connect with verified, licensed mental health professionals for personalized support</p>
+                <?php endif; ?>
             </div>
-            <select id="prof-spec" name="spec" class="filter-input" style="max-width: 250px;">
-                <option<?php echo ($spec === '' || $spec === 'All Specializations') ? ' selected' : ''; ?>>All Specializations</option>
-                <option value="Depression & Anxiety"<?php echo ($spec === 'Depression & Anxiety') ? ' selected' : ''; ?>>Depression & Anxiety</option>
-                <option value="Trauma & PTSD"<?php echo ($spec === 'Trauma & PTSD') ? ' selected' : ''; ?>>Trauma & PTSD</option>
-                <option value="Relationship Issues"<?php echo ($spec === 'Relationship Issues') ? ' selected' : ''; ?>>Relationship Issues</option>
-                <option value="Work Stress & Burnout"<?php echo ($spec === 'Work Stress & Burnout') ? ' selected' : ''; ?>>Work Stress & Burnout</option>
-            </select>
-        </form>
+
+            <!-- Search & Filters -->
+            <form class="filters" method="GET" action="professionals.php">
+                <div class="search-wrap" style="position: relative; flex:1;">
+                    <input id="prof-search" type="text" name="q" class="filter-input" placeholder="Search by name or specialization..." autocomplete="off" value="<?php echo htmlspecialchars($q ?? ''); ?>">
+                    <div id="suggestions" class="suggestions-list" style="display:none;"></div>
+                </div>
+                <select id="prof-spec" name="spec" class="filter-input" style="max-width: 250px;">
+                    <option<?php echo ($spec === '' || $spec === 'All Specializations') ? ' selected' : ''; ?>>All Specializations</option>
+                    <option value="Depression & Anxiety"<?php echo ($spec === 'Depression & Anxiety') ? ' selected' : ''; ?>>Depression & Anxiety</option>
+                    <option value="Trauma & PTSD"<?php echo ($spec === 'Trauma & PTSD') ? ' selected' : ''; ?>>Trauma & PTSD</option>
+                    <option value="Relationship Issues"<?php echo ($spec === 'Relationship Issues') ? ' selected' : ''; ?>>Relationship Issues</option>
+                    <option value="Work Stress & Burnout"<?php echo ($spec === 'Work Stress & Burnout') ? ' selected' : ''; ?>>Work Stress & Burnout</option>
+                </select>
+                <?php if ($is_emergency_mode): ?>
+                    <input type="hidden" name="emergency" value="1">
+                <?php endif; ?>
+            </form>
+
+            <?php if ($is_emergency_mode): ?>
+                <div class="professional-card" data-skip-filter="1" style="grid-column: 1 / -1;">
+                    <div class="professional-header">
+                        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" class="professional-avatar"><path d="M12 2l7 4v6c0 5-3 9-7 10-4-1-7-5-7-10V6l7-4z"/></svg>
+                        <div class="professional-info">
+                            <h3>Emergency & Crisis Support</h3>
+                            <p class="professional-spec">If you are in immediate danger, call your local emergency number now.</p>
+                            <div class="rating"><span class="rating-star">★</span><span>Immediate help</span></div>
+                        </div>
+                    </div>
+                    <div class="professional-description">
+                        View hotline numbers on the Emergency page, then choose a professional below to send an urgent request.
+                        <div style="margin-top: 10px;">
+                            <a class="btn btn-secondary btn-small" style="text-decoration:none; display:inline-flex; align-items:center;" href="emergency.php">Open Emergency page</a>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
+        <?php endif; ?>
 
         <!-- Professionals Grid -->
+        <?php if ($is_professional_user): ?>
+            <div class="professional-card" data-skip-filter="1" style="grid-column: 1 / -1;">
+                <div class="professional-header">
+                    <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" class="professional-avatar"><path d="M12 2l7 4v6c0 5-3 9-7 10-4-1-7-5-7-10V6l7-4z"/></svg>
+                    <div class="professional-info">
+                        <h3>Schedule & Session Requests</h3>
+                        <p class="professional-spec">Manage client requests, schedule sessions, and record private notes.</p>
+                        <div class="rating"><span class="rating-star">★</span><span><?php echo count($my_session_requests) + count($my_upcoming_sessions); ?></span></div>
+                    </div>
+                </div>
+
+                <?php if (count($my_session_requests) === 0 && count($my_upcoming_sessions) === 0): ?>
+                    <div class="professional-description">No session requests yet. When clients request sessions, they will appear here.</div>
+                <?php endif; ?>
+
+                <?php foreach ($my_session_requests as $s): ?>
+                    <div class="professional-description" style="margin-bottom: 12px;">
+                        <strong><?php echo htmlspecialchars($s['client_alias'] ?? 'Client'); ?></strong>
+                        • Risk: <?php echo htmlspecialchars($s['risk_level'] ?? 'low'); ?>
+                        <?php if (!empty($s['primary_concern'])): ?>
+                            • Concern: <?php echo htmlspecialchars($s['primary_concern']); ?>
+                        <?php endif; ?>
+                        <?php if (!empty($s['is_emergency'])): ?>
+                            • Emergency
+                        <?php endif; ?>
+                        <div style="margin-top: 10px; display:flex; gap: 10px; flex-wrap: wrap;">
+                            <form method="POST" style="margin:0;">
+                                <input type="hidden" name="session_id" value="<?php echo (int)($s['session_id'] ?? 0); ?>">
+                                <input type="hidden" name="session_action" value="accept">
+                                <button type="submit" class="btn btn-primary btn-small">Accept</button>
+                            </form>
+                            <form method="POST" style="margin:0;">
+                                <input type="hidden" name="session_id" value="<?php echo (int)($s['session_id'] ?? 0); ?>">
+                                <input type="hidden" name="session_action" value="decline">
+                                <button type="submit" class="btn btn-secondary btn-small">Decline</button>
+                            </form>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+
+                <?php foreach ($my_upcoming_sessions as $s): ?>
+                    <div class="professional-description" style="margin-bottom: 12px;">
+                        <strong><?php echo htmlspecialchars($s['client_alias'] ?? 'Client'); ?></strong>
+                        • Status: <?php echo htmlspecialchars($s['status'] ?? 'accepted'); ?>
+                        <?php if (!empty($s['scheduled_at'])): ?>
+                            • Scheduled: <?php echo htmlspecialchars(date('M j, Y g:i A', strtotime($s['scheduled_at']))); ?>
+                        <?php endif; ?>
+                        <div style="margin-top: 10px;">
+                            <form method="POST" style="margin:0; display:grid; gap: 10px;">
+                                <input type="hidden" name="session_id" value="<?php echo (int)($s['session_id'] ?? 0); ?>">
+                                <input type="hidden" name="session_action" value="update_notes">
+                                <input type="datetime-local" name="scheduled_at" class="filter-input" style="max-width: 320px;" value="<?php echo !empty($s['scheduled_at']) ? htmlspecialchars(date('Y-m-d\TH:i', strtotime($s['scheduled_at']))) : ''; ?>">
+                                <textarea name="private_notes" class="filter-input" style="min-height: 90px;" placeholder="Private professional notes..."><?php echo htmlspecialchars($s['private_notes'] ?? ''); ?></textarea>
+                                <select name="risk_assessment" class="filter-input" style="max-width: 250px;">
+                                    <option value="low" <?php echo (($s['risk_assessment'] ?? 'low') === 'low') ? 'selected' : ''; ?>>Risk assessment: low</option>
+                                    <option value="medium" <?php echo (($s['risk_assessment'] ?? '') === 'medium') ? 'selected' : ''; ?>>Risk assessment: medium</option>
+                                    <option value="high" <?php echo (($s['risk_assessment'] ?? '') === 'high') ? 'selected' : ''; ?>>Risk assessment: high</option>
+                                    <option value="critical" <?php echo (($s['risk_assessment'] ?? '') === 'critical') ? 'selected' : ''; ?>>Risk assessment: critical</option>
+                                </select>
+                                <label style="display:flex; align-items:center; gap: 10px; color: var(--text-secondary); font-size: 0.95rem;">
+                                    <input type="checkbox" name="follow_up_required" <?php echo !empty($s['follow_up_required']) ? 'checked' : ''; ?>> Follow-up recommended
+                                </label>
+                                <button type="submit" class="btn btn-secondary btn-small" style="justify-self:start;">Save Notes</button>
+                            </form>
+
+                            <div style="margin-top: 10px; display:flex; gap: 10px; flex-wrap: wrap;">
+                                <form method="POST" style="margin:0;">
+                                    <input type="hidden" name="session_id" value="<?php echo (int)($s['session_id'] ?? 0); ?>">
+                                    <input type="hidden" name="session_action" value="complete">
+                                    <button type="submit" class="btn btn-primary btn-small">Mark Completed</button>
+                                </form>
+                                <form method="POST" style="margin:0;">
+                                    <input type="hidden" name="session_id" value="<?php echo (int)($s['session_id'] ?? 0); ?>">
+                                    <input type="hidden" name="session_action" value="cancel">
+                                    <button type="submit" class="btn btn-secondary btn-small">Cancel</button>
+                                </form>
+                                <form method="POST" style="margin:0;">
+                                    <input type="hidden" name="session_id" value="<?php echo (int)($s['session_id'] ?? 0); ?>">
+                                    <input type="hidden" name="session_action" value="no_show">
+                                    <button type="submit" class="btn btn-secondary btn-small">No-show</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!$is_professional_user): ?>
         <div class="professionals-grid">
             <?php foreach ($all_professionals as $prof): ?>
                 <div class="professional-card" data-name="<?php echo htmlspecialchars($prof['name']); ?>" data-specialization="<?php echo htmlspecialchars($prof['specialization']); ?>">
@@ -335,16 +570,31 @@ if ($q !== '' || ($spec !== '' && $spec !== 'All Specializations')) {
 
                     <div class="professional-footer">
                         <div class="fee">৳<?php echo $prof['fee']; ?>/session</div>
-                        <button class="book-btn" onclick="alert('Booking system coming soon! 🎉')">Book</button>
+                        <?php if ($is_professional_user): ?>
+                            <button class="book-btn" onclick="alert('Scheduling is managed in your workspace above.')">Workspace</button>
+                        <?php else: ?>
+                            <?php if (!empty($prof['is_accepting_patients'])): ?>
+                                <?php if ($is_emergency_mode): ?>
+                                    <a class="book-btn" href="professionals.php?request_emergency=<?php echo (int)$prof['id']; ?>">Request</a>
+                                <?php else: ?>
+                                    <a class="book-btn" href="professionals.php?request_session=<?php echo (int)$prof['id']; ?>">Request</a>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <button class="book-btn" onclick="alert('This professional is not currently accepting new clients.')">Unavailable</button>
+                            <?php endif; ?>
+                        <?php endif; ?>
                     </div>
                 </div>
             <?php endforeach; ?>
         </div>
+        <?php endif; ?>
 
         <!-- Navigation -->
         <div style="display: flex; gap: 1rem; margin-top: 2rem; flex-wrap: wrap;">
             <a href="index.php" class="btn btn-primary">Back to Dashboard</a>
-            <a href="mood_tracker.php" class="btn btn-secondary">Mood Tracker</a>
+            <?php if (!$is_professional_user): ?>
+                <a href="mood_tracker.php" class="btn btn-secondary">Mood Tracker</a>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -372,6 +622,9 @@ if ($q !== '' || ($spec !== '' && $spec !== 'All Specializations')) {
             const hasSpecFilter = selectedSpec !== '' && selectedSpec !== 'All Specializations';
             const cards = document.querySelectorAll('.professional-card');
             cards.forEach(card => {
+                if (card.getAttribute('data-skip-filter') === '1') {
+                    return;
+                }
                 const name = (card.getAttribute('data-name') || '').toLowerCase();
                 const spec = (card.getAttribute('data-specialization') || '').toLowerCase();
                 const matchesQuery = q === '' || name.includes(q) || spec.includes(q);

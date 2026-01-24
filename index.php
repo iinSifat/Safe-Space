@@ -45,20 +45,34 @@ if (is_admin_logged_in()) {
             min-height: 100vh;
         }
         .page-shell {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 26px 20px 60px;
+            width: 100%;
+            max-width: none;
+            margin: 0;
+            /* Offset for fixed header (keeps content from sliding under it) */
+            padding: 118px 0 60px;
         }
         header {
+            /* Full-width, tall, stable header (reference-like structure) */
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            height: 92px;
+            background: rgba(248, 251, 255, 0.9);
+            backdrop-filter: blur(12px);
+            z-index: 50;
+        }
+
+        .header-inner {
+            height: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 10px 0 22px;
-            position: sticky;
-            top: 0;
-            background: rgba(248, 251, 255, 0.9);
-            backdrop-filter: blur(12px);
-            z-index: 10;
+            gap: 18px;
         }
         .brand {
             display: flex;
@@ -100,6 +114,11 @@ if (is_admin_logged_in()) {
         .btn:hover { transform: translateY(-2px); }
         .hero {
             padding: 40px 0 28px;
+        }
+        .hero-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
             display: grid;
             gap: 22px;
             text-align: center;
@@ -188,17 +207,28 @@ if (is_admin_logged_in()) {
         .bg-lime { background: linear-gradient(135deg, #86e3a1, #4ccf8f); color: #0c1b33; }
         .bg-indigo { background: linear-gradient(135deg, #5b6bff, #4b5ae6); }
         .assurance {
-            background: white;
+            background: var(--bg-card, #F8F9F7);
             border-radius: 24px;
             padding: 26px;
-            margin: 52px 0 18px;
+            width: calc(100% - 40px);
+            max-width: 1200px;
+            margin: 52px auto 18px;
             box-shadow: 0 18px 40px rgba(12, 27, 51, 0.08);
             text-align: center;
         }
         .assurance p { margin: 0 0 10px; color: var(--muted); }
-        footer { text-align: center; color: var(--muted); font-size: 14px; margin-top: 18px; }
+        footer {
+            text-align: center;
+            color: var(--muted);
+            font-size: 14px;
+            margin: 18px auto 0;
+            max-width: 1200px;
+            padding: 0 20px;
+        }
         @media (max-width: 768px) {
-            header { position: static; flex-wrap: wrap; gap: 12px; }
+            header { height: 92px; }
+            .page-shell { padding: 118px 0 60px; }
+            .header-inner { flex-wrap: wrap; justify-content: center; row-gap: 10px; padding: 10px 16px; }
             nav { width: 100%; justify-content: center; }
             .hero h1 { font-size: 36px; }
             .nav-actions { width: 100%; justify-content: center; }
@@ -206,8 +236,8 @@ if (is_admin_logged_in()) {
     </style>
 </head>
 <body>
-    <div class="page-shell">
-        <header>
+    <header>
+        <div class="header-inner">
             <a class="brand" href="<?php echo is_logged_in() ? 'dashboard/index.php' : 'index.php'; ?>" style="text-decoration:none;">
                 <img src="images/logo.png" alt="Safe Space" style="width: 44px; height: 44px; border-radius: 14px;">
                 Safe Space
@@ -221,25 +251,30 @@ if (is_admin_logged_in()) {
                 <a class="btn btn-ghost" href="auth/login.php">Sign In</a>
                 <a class="btn btn-primary" href="auth/registration.php">Get Started</a>
             </div>
-        </header>
+        </div>
+    </header>
+
+    <div class="page-shell">
 
         <main>
             <section class="hero" id="about">
-                <div class="pill">
-                    <span aria-hidden="true">✺</span>
-                    <span>Your mental wellness matters</span>
-                </div>
-                <h1>A Safe Space for Your <span class="accent">Mental Health</span> Journey</h1>
-                <p>Connect anonymously, share openly, and heal together with a supportive community that understands. You are never alone here.</p>
-                <div class="hero-actions">
-                    <a class="btn btn-primary" href="auth/registration.php">Join Safe Space</a>
-                    <a class="btn btn-outline" href="auth/login.php">Learn More</a>
-                </div>
-                <div class="stats" id="stories">
-                    <div class="stat"><strong>50K+</strong><span>Community Members</span></div>
-                    <div class="stat"><strong>24/7</strong><span>Support Available</span></div>
-                    <div class="stat"><strong>100+</strong><span>Professional Counselors</span></div>
-                    <div class="stat"><strong>98%</strong><span>User Satisfaction</span></div>
+                <div class="hero-inner">
+                    <div class="pill">
+                        <span aria-hidden="true"><svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l1.8 6.1L20 12l-6.2 3.9L12 22l-1.8-6.1L4 12l6.2-3.9L12 2z"/></svg></span>
+                        <span>Your mental wellness matters</span>
+                    </div>
+                    <h1>A Safe Space for Your <span class="accent">Mental Health</span> Journey</h1>
+                    <p>Connect anonymously, share openly, and heal together with a supportive community that understands. You are never alone here.</p>
+                    <div class="hero-actions">
+                        <a class="btn btn-primary" href="auth/registration.php">Join Safe Space</a>
+                        <a class="btn btn-outline" href="auth/login.php">Learn More</a>
+                    </div>
+                    <div class="stats" id="stories">
+                        <div class="stat"><strong>50K+</strong><span>Community Members</span></div>
+                        <div class="stat"><strong>24/7</strong><span>Support Available</span></div>
+                        <div class="stat"><strong>100+</strong><span>Professional Counselors</span></div>
+                        <div class="stat"><strong>98%</strong><span>User Satisfaction</span></div>
+                    </div>
                 </div>
             </section>
 

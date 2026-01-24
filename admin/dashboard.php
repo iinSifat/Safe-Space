@@ -32,6 +32,21 @@ $total_volunteers = (int)($conn->query("SELECT COUNT(*) AS c FROM users WHERE us
 $total_forum_posts = (int)($conn->query("SELECT COUNT(*) AS c FROM forum_posts WHERE status = 'published'")?->fetch_assoc()['c'] ?? 0);
 $total_blog_posts = (int)($conn->query("SELECT COUNT(*) AS c FROM blog_posts WHERE status = 'published'")?->fetch_assoc()['c'] ?? 0);
 
+// Updated by Shuvo - START
+// Community quick stats (safe even if tables are missing)
+$pending_community_requests = 0;
+try {
+    $t = $conn->query("SHOW TABLES LIKE 'community_requests'");
+    $hasCommunityRequests = ($t && $t->num_rows > 0);
+    if ($t) { $t->free(); }
+    if ($hasCommunityRequests) {
+        $pending_community_requests = (int)($conn->query("SELECT COUNT(*) AS c FROM community_requests WHERE status = 'pending' OR status IS NULL")?->fetch_assoc()['c'] ?? 0);
+    }
+} catch (Throwable $e) {
+    $pending_community_requests = 0;
+}
+// Updated by Shuvo - END
+
 $page_title = "Admin Dashboard";
 ?>
 <!DOCTYPE html>
@@ -79,7 +94,7 @@ $page_title = "Admin Dashboard";
         }
         
         .admin-card {
-            background: white;
+            background: var(--bg-card, #F8F9F7);
             padding: 2rem;
             border-radius: 18px;
             box-shadow: var(--shadow-sm);
@@ -104,8 +119,8 @@ $page_title = "Admin Dashboard";
         }
         
         .card-icon svg {
-            width: 32px;
-            height: 32px;
+            width: 22px;
+            height: 22px;
             fill: white;
         }
         
@@ -136,11 +151,11 @@ $page_title = "Admin Dashboard";
         <div class="admin-header">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <h1 class="admin-title">🛡️ Admin Dashboard</h1>
+                    <h1 class="admin-title"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display: inline-block; margin-right: 10px; vertical-align: -0.18em;"><path d="M12 1l9 4v6c0 5.55-3.84 10.74-9 12-5.16-1.26-9-6.45-9-12V5l9-4z"/></svg> Admin Dashboard</h1>
                     <p>Welcome, <strong><?php echo htmlspecialchars($admin_name); ?></strong> (<?php echo ucfirst($admin_role); ?>)</p>
                 </div>
                 <div>
-                    <a href="../dashboard/logout.php" class="btn" style="background: white; color: #FF6B6B;">Logout</a>
+                    <a href="../dashboard/logout.php" class="btn" style="background: var(--bg-card, #F8F9F7); color: #FF6B6B;">Logout</a>
                 </div>
             </div>
         </div>
@@ -217,6 +232,26 @@ $page_title = "Admin Dashboard";
                 </p>
                 <a class="btn" href="volunteer_applications.php" style="background: var(--primary-color); color: #fff;">Review Volunteer Applications</a>
             </div>
+
+            <!-- Updated by Shuvo - START -->
+            <div class="admin-card">
+                <h3 style="color: var(--text-primary); margin-bottom: 1rem;">Community Management</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                    Review community creation requests and community volunteer needs.
+                </p>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <a class="btn" href="community_requests.php" style="background: var(--primary-color); color: #fff;">
+                        Review Community Requests
+                        <?php if ($pending_community_requests > 0): ?>
+                            <span style="margin-left:8px; display:inline-block; padding:2px 8px; border-radius:999px; background: rgba(255,255,255,0.22); color:#fff; font-weight: 900; font-size: 12px;">
+                                <?php echo (int)$pending_community_requests; ?> pending
+                            </span>
+                        <?php endif; ?>
+                    </a>
+                    <a class="btn" href="community_volunteer_needs.php" style="background: var(--secondary-color); color: #fff;">Review Volunteer Needs</a>
+                </div>
+            </div>
+            <!-- Updated by Shuvo - END -->
 
             <div class="admin-card">
                 <h3 style="color: var(--text-primary); margin-bottom: 1rem;">Content Moderation</h3>

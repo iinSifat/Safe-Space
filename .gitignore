@@ -38,6 +38,7 @@ Thumbs.db
 
 # Config (if it has sensitive data)
 # config/config.php
+config/config.local.php
 
 # Testing
 test-results/

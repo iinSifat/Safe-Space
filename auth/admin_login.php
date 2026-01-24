@@ -171,7 +171,7 @@ $page_title = "Admin Login";
             <!-- Logo Section -->
             <div class="logo-section">
                 <img src="../images/logo.png" alt="Safe Space Logo" style="width: 80px; height: 80px; margin: 0 auto 1rem; display: block;">
-                <div class="admin-badge">🛡️ ADMIN PORTAL</div>
+                <div class="admin-badge"><svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 1l9 4v6c0 5.55-3.84 10.74-9 12-5.16-1.26-9-6.45-9-12V5l9-4z"/></svg> ADMIN PORTAL</div>
                 <h1 class="logo-text">Safe Space</h1>
                 <p class="logo-tagline">Administrative Access</p>
             </div>
@@ -273,7 +273,7 @@ $page_title = "Admin Login";
 
             <!-- Security Notice -->
             <div class="text-center mt-3" style="font-size: 0.85rem; color: var(--text-secondary);">
-                <p>🔒 All admin activities are monitored and logged for security purposes</p>
+                <p><svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> All admin activities are monitored and logged for security purposes</p>
             </div>
         </div>
 
@@ -299,7 +299,7 @@ $page_title = "Admin Login";
         });
 
         // Security: Log page access
-        console.log('%c⚠️ WARNING', 'color: red; font-size: 24px; font-weight: bold;');
+        console.log('%cWARNING', 'color: red; font-size: 24px; font-weight: bold;');
         console.log('%cThis is a restricted area. Unauthorized access is prohibited and will be prosecuted.', 'font-size: 14px;');
         console.log('%cAll activities are logged and monitored.', 'font-size: 14px;');
     </script>

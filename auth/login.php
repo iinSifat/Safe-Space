@@ -22,9 +22,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username_or_email = sanitize_input($_POST['username_or_email'] ?? '');
     $password = $_POST['password'] ?? '';
     $remember_me = isset($_POST['remember_me']);
+    $login_role = sanitize_input($_POST['login_role'] ?? 'community');
     
     // Store form data for repopulation
     $form_data['username_or_email'] = $username_or_email;
+    $form_data['login_role'] = $login_role;
     
     // Validation
     if (empty($username_or_email)) {
@@ -57,41 +59,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!$user['is_active']) {
                     $errors[] = "Your account has been deactivated. Please contact support.";
                 } else {
-                    // Successful login
-                    $_SESSION['user_id'] = $user['user_id'];
-                    $_SESSION['username'] = $user['username'];
-                    $_SESSION['email'] = $user['email'];
-                    $_SESSION['user_type'] = $user['user_type'];
-                    $_SESSION['is_verified'] = $user['is_verified'];
-                    $_SESSION['last_activity'] = time();
-                    
-                    // Update last login
-                    $update_stmt = $conn->prepare("UPDATE users SET last_login = NOW() WHERE user_id = ?");
-                    $update_stmt->bind_param("i", $user['user_id']);
-                    $update_stmt->execute();
-                    $update_stmt->close();
-                    
-                    // Log activity
-                    log_activity($user['user_id'], 'login', 'User logged in successfully');
-                    
-                    // Regenerate session ID for security
-                    regenerate_session();
-                    
-                    // Handle remember me
-                    if ($remember_me) {
-                        setcookie('user_id', $user['user_id'], time() + (86400 * 30), '/'); // 30 days
+                    // If user explicitly chose Professional, enforce that the account is professional.
+                    if ($login_role === 'professional' && ($user['user_type'] ?? '') !== 'professional') {
+                        $errors[] = 'This account is not a professional account. Please choose Community Member sign-in.';
                     }
-                    
-                    // Redirect based on user type
-                    switch ($user['user_type']) {
-                        case 'professional':
-                            redirect('../dashboard/professional_dashboard.php');
-                            break;
-                        case 'volunteer':
-                            redirect('../dashboard/volunteer_dashboard.php');
-                            break;
-                        default:
-                            redirect('../dashboard/index.php');
+
+                    // If user chose Community Member, block professional accounts.
+                    // Community includes patients/supporters/volunteers; professionals must use the Professional option.
+                    if ($login_role !== 'professional' && ($user['user_type'] ?? '') === 'professional') {
+                        $errors[] = 'This is a professional account. Please choose Professional sign-in.';
+                    }
+
+                    if (empty($errors)) {
+                        // Successful login
+                        $_SESSION['user_id'] = $user['user_id'];
+                        $_SESSION['username'] = $user['username'];
+                        $_SESSION['email'] = $user['email'];
+                        $_SESSION['user_type'] = $user['user_type'];
+                        $_SESSION['is_verified'] = $user['is_verified'];
+                        $_SESSION['last_activity'] = time();
+
+                        // Update last login
+                        $update_stmt = $conn->prepare("UPDATE users SET last_login = NOW() WHERE user_id = ?");
+                        $update_stmt->bind_param("i", $user['user_id']);
+                        $update_stmt->execute();
+                        $update_stmt->close();
+
+                        // Log activity
+                        log_activity($user['user_id'], 'login', 'User logged in successfully');
+
+                        // Regenerate session ID for security
+                        regenerate_session();
+
+                        // Handle remember me
+                        if ($remember_me) {
+                            setcookie('user_id', $user['user_id'], time() + (86400 * 30), '/'); // 30 days
+                        }
+
+                        // Redirect: dashboard index supports professional/community views.
+                        redirect('../dashboard/index.php');
                     }
                 }
             } else {
@@ -139,18 +145,31 @@ $page_title = "Welcome Back";
         .page-shell {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 26px 20px 60px;
+            /* Offset for fixed header */
+            padding: 118px 20px 60px;
         }
         header {
+            /* Full-width, tall, stable header (matches landing header structure) */
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            height: 92px;
+            background: rgba(248, 251, 255, 0.9);
+            backdrop-filter: blur(12px);
+            z-index: 50;
+        }
+
+        .header-inner {
+            height: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 10px 0 22px;
-            position: sticky;
-            top: 0;
-            background: rgba(248, 251, 255, 0.9);
-            backdrop-filter: blur(12px);
-            z-index: 10;
+            gap: 18px;
         }
         .brand {
             display: flex;
@@ -158,12 +177,35 @@ $page_title = "Welcome Back";
             gap: 12px;
             font-weight: 700;
             font-size: 20px;
-            color: var(--text);
+            color: var(--text, #0c1b33);
             text-decoration: none;
         }
         nav { display: flex; align-items: center; gap: 30px; }
-        nav a { color: var(--muted); text-decoration: none; font-weight: 600; font-size: 15px; transition: color 0.2s; }
-        nav a:hover { color: var(--text); }
+        nav a { color: var(--muted, #5a6b8a); text-decoration: none; font-weight: 600; font-size: 15px; transition: color 0.2s; }
+        nav a:hover { color: var(--text, #0c1b33); }
+
+        .nav-actions { display: flex; align-items: center; gap: 12px; }
+        .header-btn {
+            border: 0;
+            cursor: pointer;
+            border-radius: 14px;
+            font-weight: 700;
+            font-size: 15px;
+            padding: 12px 18px;
+            text-decoration: none;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+        }
+        .header-btn-ghost { background: transparent; color: var(--text, #0c1b33); }
+        .header-btn-primary {
+            background: linear-gradient(135deg, var(--primary, #14b8a6), #3ad0be);
+            color: white;
+            box-shadow: 0 12px 30px rgba(20, 184, 166, 0.35);
+        }
+        .header-btn:hover { transform: translateY(-2px); }
         .auth-container {
             display: flex;
             justify-content: center;
@@ -220,10 +262,65 @@ $page_title = "Welcome Back";
             font-weight: 600;
         }
         .text-link:hover { text-decoration: underline; }
+
+        /* Match the exact role-card UI used on registration.php */
+        .role-selection {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .role-card {
+            background: var(--bg-card, #F8F9F7);
+            border: 2px solid var(--border-soft, #D8E2DD);
+            border-radius: 16px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all var(--transition-fast, 0.18s ease);
+            text-align: center;
+            user-select: none;
+        }
+
+        .role-card.active,
+        .role-card:hover {
+            border-color: var(--accent-primary, #7FAFA3);
+            box-shadow: var(--shadow-sm, 0 6px 16px rgba(12, 27, 51, 0.08));
+        }
+
+        .role-icon {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 8px;
+            background: linear-gradient(135deg, var(--accent-primary, #7FAFA3), var(--accent-soft, #9FBFB6));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform var(--transition-normal, 0.3s ease);
+        }
+
+        .role-card:hover .role-icon,
+        .role-card.active .role-icon {
+            transform: scale(1.1);
+        }
+
+        .role-icon svg {
+            width: 28px;
+            height: 28px;
+            fill: var(--white, #F8F9F7);
+        }
+
+        .role-title { font-weight: 700; color: var(--text); margin-bottom: 4px; }
+        .role-description { color: var(--muted); font-size: 0.9rem; }
+
         @media (max-width: 768px) {
-            header { position: static; flex-wrap: wrap; gap: 12px; }
+            header { height: 92px; }
+            .header-inner { flex-wrap: wrap; justify-content: center; row-gap: 10px; padding: 10px 16px; }
             nav { width: 100%; justify-content: center; }
+            .nav-actions { width: 100%; justify-content: center; }
             .auth-card { padding: 28px; }
+            .role-selection { grid-template-columns: 1fr; }
         }
     </style>
 
@@ -231,16 +328,21 @@ $page_title = "Welcome Back";
 <body>
     <div class="page-shell">
         <header>
-            <a class="brand" href="<?php echo is_logged_in() ? '../dashboard/index.php' : '../index.php'; ?>">
-                <img src="../images/logo.png" alt="Safe Space" style="width: 40px; height: 40px; border-radius: 12px;">
-                Safe Space
-            </a>
-            <nav>
-                <a href="../index.php#features">Features</a>
-                <a href="../index.php#about">About</a>
-                <a href="../index.php#stories">Stories</a>
-                <a href="registration.php" class="text-link">Sign Up</a>
-            </nav>
+            <div class="header-inner">
+                <a class="brand" href="<?php echo is_logged_in() ? '../dashboard/index.php' : '../index.php'; ?>">
+                    <img src="../images/logo.png" alt="Safe Space" style="width: 40px; height: 40px; border-radius: 12px;">
+                    Safe Space
+                </a>
+                <nav>
+                    <a href="../index.php#features">Features</a>
+                    <a href="../index.php#about">About</a>
+                    <a href="../index.php#stories">Stories</a>
+                </nav>
+                <div class="nav-actions">
+                    <a class="header-btn header-btn-ghost" href="login.php" aria-current="page">Sign In</a>
+                    <a class="header-btn header-btn-primary" href="registration.php">Get Started</a>
+                </div>
+            </div>
         </header>
 
         <div class="auth-container">
@@ -280,6 +382,33 @@ $page_title = "Welcome Back";
 
             <!-- Login Form -->
             <form method="POST" action="" id="loginForm" novalidate>
+                <input type="hidden" name="login_role" id="login_role" value="<?php echo htmlspecialchars($form_data['login_role'] ?? 'community'); ?>">
+
+                <div class="form-group">
+                    <label class="form-label">I am signing in as <span class="required">*</span></label>
+                    <div class="role-selection">
+                        <div class="role-card <?php echo (($form_data['login_role'] ?? 'community') === 'community') ? 'active' : ''; ?>" onclick="selectLoginRole('community', event)">
+                            <div class="role-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                                </svg>
+                            </div>
+                            <div class="role-title">Community Member</div>
+                            <div class="role-description">Seek support, share experiences, and help others</div>
+                        </div>
+
+                        <div class="role-card <?php echo (($form_data['login_role'] ?? 'community') === 'professional') ? 'active' : ''; ?>" onclick="selectLoginRole('professional', event)">
+                            <div class="role-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                                </svg>
+                            </div>
+                            <div class="role-title">Professional</div>
+                            <div class="role-description">Licensed mental health expert</div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Username or Email -->
                 <div class="form-group">
                     <label for="username_or_email" class="form-label">Username or Email <span class="required">*</span></label>
@@ -353,6 +482,16 @@ $page_title = "Welcome Back";
     </div>
 
     <script>
+        // Role selection (same interaction pattern as registration.php)
+        function selectLoginRole(role, event) {
+            document.querySelectorAll('.role-card').forEach(card => {
+                card.classList.remove('active');
+            });
+
+            event.currentTarget.classList.add('active');
+            document.getElementById('login_role').value = role;
+        }
+
         // Password toggle
         function togglePassword(fieldId) {
             const field = document.getElementById(fieldId);
